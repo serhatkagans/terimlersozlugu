@@ -1,9 +1,9 @@
 'use client';
 import {useState} from 'react';
-import {cover,emojiOf,kindOf,type Word,type Work} from '../lib/words';
+import {coverOf,emojiOf,kindOf,type Word,type Work} from '../lib/words';
 import {inTitle,mask} from '../lib/game';
 import {Guess,hint,Meanings,ModeToggle,Pic,useSessionSet,type GuessMode} from './dict-ui';
-function Cover({k,covers,small=false}:{k:Work;covers:Record<string,number>;small?:boolean}){return covers[k.id]?<img className="work-cover" src={cover(k.id,covers[k.id])} alt={`${k.title} kapağı`}/>:<div className={`work-cover work-cover-empty${small?' small':''}`} role="img" aria-label={`${k.title} simgesi`}><span className="group-emoji" aria-hidden="true">{emojiOf(k.id)}</span><b>{k.title}</b></div>;}
+function Cover({k,covers,small=false}:{k:Work;covers:Record<string,number>;small?:boolean}){const src=coverOf(k.id,covers);return src?<img className="work-cover" src={src} alt={`${k.title} kapağı`}/>:<div className={`work-cover work-cover-empty${small?' small':''}`} role="img" aria-label={`${k.title} simgesi`}><span className="group-emoji" aria-hidden="true">{emojiOf(k.id)}</span><b>{k.title}</b></div>;}
 // Çalışma grubu kartları: kapak/simge + tanıtım + terim sayısı. Gruba girilince terimler maskeli gelir, doğru tahminle açılır (oturum boyunca açık kalır).
 // Adı grubun adında geçen terimler (Robotik → robot) bilmece olamayacağı için baştan açık gelir.
 export default function WorksView({words,works,ill,covers,onAdd}:{words:Word[];works:Work[];ill:Record<string,number>;covers:Record<string,number>;onAdd:(work:string)=>void}){

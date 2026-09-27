@@ -2,7 +2,7 @@
 // Veri modeli ilk sürümden (Kelimeden Hayale) geliyor; iç adlar korunmuştur: Work = çalışma grubu, Word = terim.
 // Terime özel resim DATA_DIR/art/kelimeler/<id>.png olarak durur; yoksa `image` alanındaki ortak resim kullanılır.
 import {groups,type TermRow} from './terimler/index.ts';
-import {bundledArt} from './terimler/gorseller.ts';
+import {bundledArt,bundledCovers} from './terimler/gorseller.ts';
 // title: grup adı · author: grubun kısa tanıtımı · period ve month artık kullanılmıyor (eski veritabanı uyumu için duruyor).
 export type Work = {id:string;title:string;author:string;period:string;month:string;kind?:string};
 // word: terim · syllables: karşılığı (İngilizce terimde Türkçesi, Türkçe terimde İngilizcesi) · oldMeaning: kısa tanım (oyunlarda ipucu) · meaning: açıklama.
@@ -27,6 +27,8 @@ export const art=(name:string)=>name.includes('.')?`${base}/art/${name}`:`${base
 // Kelimeye özel resim: yüklenmiş dosya ya da public/art altındaki çizim. Yoksa null ("Görsel bekleniyor").
 export const ownArt=(w:Word,illustrated:Record<string,number>)=>illustrated[w.id]?wordArt(w.id,illustrated[w.id]):w.image.includes('.')?art(w.image):null;
 export const cover=(id:string,version:number)=>`${base}/api/cover/${id}?v=${version}`;
+// Grup kapağı: panelden yüklenen kapak, yoksa public/art/kapaklar altındaki hazır kapak. İkisi de yoksa null (grup simgesi gösterilir).
+export const coverOf=(id:string,covers:Record<string,number>)=>covers[id]?cover(id,covers[id]):bundledCovers.has(id)?`${base}/art/kapaklar/${id}.webp`:null;
 export const wordArt=(id:string,version:number)=>`${base}/api/word-art/${id}?v=${version}`;
 export const workOf=(works:Work[],w:Word)=>works.find(x=>x.id===w.work)??{id:w.work,title:'',author:'',period:'',month:'',kind:'eser'};
 // Türkçe harfleri sadeleştirip adres dostu kimlik üretir: "Çalıkuşu" → "calikusu".
