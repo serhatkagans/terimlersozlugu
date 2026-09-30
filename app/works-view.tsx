@@ -1,13 +1,14 @@
 'use client';
 import {useState} from 'react';
 import {coverOf,emojiOf,kindOf,type Word,type Work} from '../lib/words';
-import {inTitle,mask} from '../lib/game';
+import {hideWords,inTitle,mask} from '../lib/game';
 import {Guess,hint,Meanings,ModeToggle,Pic,useSessionSet,type GuessMode} from './dict-ui';
 function Cover({k,covers,small=false}:{k:Work;covers:Record<string,number>;small?:boolean}){const src=coverOf(k.id,covers);return src?<img className="work-cover" src={src} alt={`${k.title} kapağı`}/>:<div className={`work-cover work-cover-empty${small?' small':''}`} role="img" aria-label={`${k.title} simgesi`}><span className="group-emoji" aria-hidden="true">{emojiOf(k.id)}</span><b>{k.title}</b></div>;}
 // Çalışma grubu kartları: kapak/simge + tanıtım + terim sayısı. Gruba girilince terimler maskeli gelir, doğru tahminle açılır (oturum boyunca açık kalır).
 // Adı grubun adında geçen terimler (Robotik → robot) bilmece olamayacağı için baştan açık gelir.
-export default function WorksView({words,works,ill,covers,onAdd}:{words:Word[];works:Work[];ill:Record<string,number>;covers:Record<string,number>;onAdd:(work:string)=>void}){
-const [open,setOpen]=useState(''),[active,setActive]=useState(''),[mode,setMode]=useState<GuessMode>('choice'),[opened,markOpened]=useSessionSet('gt-grup-acilan');
+// Açık grup adreste tutulur (?bolum=gruplar&grup=robotik).
+export default function WorksView({words,works,ill,covers,onAdd,open,setOpen}:{words:Word[];works:Work[];ill:Record<string,number>;covers:Record<string,number>;onAdd:(work:string)=>void;open:string;setOpen:(id:string)=>void}){
+const [active,setActive]=useState(''),[mode,setMode]=useState<GuessMode>('choice'),[opened,markOpened]=useSessionSet('gt-grup-acilan');
 const title=(id:string)=>works.find(x=>x.id===id)?.title??'',isOpen=(w:Word)=>opened.has(w.id)||inTitle(w.word,title(w.work));
 const of=(id:string)=>words.filter(w=>w.work===id),solved=(id:string)=>of(id).filter(isOpen).length,riddles=(id:string)=>of(id).some(w=>!inTitle(w.word,title(id)));
 const k=works.find(x=>x.id===open);
@@ -21,5 +22,5 @@ return <section className="standalone work-detail"><button className="text-butto
 <div className="work-tools"><ModeToggle mode={mode} setMode={setMode}/><button className="text-button" onClick={()=>onAdd(k.id)}>+ Bu gruba terim ekle</button></div>
 <div className="mask-grid">{list.map(w=>{const shown=isOpen(w);return <article key={w.id} className={`mask-card${shown?' opened':''}${active===w.id?' active':''}`}>
 {shown?<><Pic w={w} ill={ill}/><div><h3>{w.word}{w.syllables&&w.syllables!==w.word&&<small> · {w.syllables}</small>}</h3><Meanings w={w} k={k}/><p className="entry-example">“{w.example}”</p></div></>
-:<><button className="mask-face" aria-expanded={active===w.id} onClick={()=>setActive(active===w.id?'':w.id)}><span className="masked" aria-label={`${[...w.word].length} karakterli gizli terim`}>{mask(w.word,.5,w.id)}</span><span className="mask-hint"><small>{kindOf(k).oldShort.toLocaleUpperCase('tr')}</small>{hint(w)}</span>{active!==w.id&&<span className="mask-cta">Tahmin et ↗</span>}</button>
+:<><button className="mask-face" aria-expanded={active===w.id} onClick={()=>setActive(active===w.id?'':w.id)}>{mode==='text'?<span className="masked" aria-label={`${[...w.word].length} karakterli gizli terim`}>{mask(w.word,.5,w.id)}</span>:<span className="masked" aria-label="Gizli terim">? ? ?</span>}<span className="mask-hint"><small>{kindOf(k).oldShort.toLocaleUpperCase('tr')}</small>{hideWords(hint(w),w.word)}</span>{active!==w.id&&<span className="mask-cta">Tahmin et ↗</span>}</button>
 {active===w.id&&<Guess key={mode} w={w} pool={words} mode={mode} retry onDone={()=>{markOpened(w.id);setActive('');}}/>}</>}</article>;})}</div></>}</section>;}

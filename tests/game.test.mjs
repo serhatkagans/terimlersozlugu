@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {choices,fold,inTitle,mask,pages,sameWord,shuffle} from '../lib/game.ts';
+import {choices,fold,hideWords,inTitle,mask,pages,sameWord,search,shuffle} from '../lib/game.ts';
 test('Serbest metin tahmini harf farklarını tolere eder',()=>{
  assert.ok(sameWord('yalnuk','yalŋuk'));assert.ok(sameWord('MUN','muñ'));assert.ok(sameWord('edgu','edgü'));assert.ok(sameWord(' Nigah ','nigâh'));assert.ok(sameWord('KÖRKLÜG','körklüg'));
  assert.ok(!sameWord('kutlu','kut'));assert.ok(!sameWord('','kut'));assert.equal(fold('Tuğyan'),'tugyan');
@@ -33,4 +33,20 @@ test('CSV: Excel ayraçları, tırnaklar ve başlık eşleme',async()=>{
 test('Grup adında geçen (ya da grup adını içeren) terim bilmece sayılmaz',()=>{
  assert.ok(inTitle('Robot','Robotik'));assert.ok(inTitle('E-ticaret','E-Ticaret ve E-İhracat'));assert.ok(inTitle('Güvenli İnternet Günü','Güvenli İnternet'));
  assert.ok(!inTitle('Shader','Oyun Tasarımı'));assert.ok(!inTitle('VPN','Siber Güvenlik'));assert.ok(!inTitle('UI','Oyun Tasarımı'));
+});
+test('arama Türkçe harf ve şapka farkını yok sayar, terimi tanımdan önce sıralar',()=>{
+ const list=[{word:'Yapay zekâ',syllables:'Artificial intelligence',meaning:'Makinelerin öğrenmesi'},{word:'Açık kaynak',syllables:'Open source',meaning:'Kaynak kodu herkese açık yazılım'},{word:'Kod',syllables:'Code',meaning:'Açık kaynak projelerde paylaşılan metin'}];
+ assert.deepEqual(search(list,'yapay zeka').map(w=>w.word),['Yapay zekâ']);
+ assert.deepEqual(search(list,'ZEKA').map(w=>w.word),['Yapay zekâ']);
+ assert.deepEqual(search(list,'acik').map(w=>w.word),['Açık kaynak','Kod']);
+ assert.deepEqual(search(list,'open').map(w=>w.word),['Açık kaynak']);
+ assert.equal(search(list,'  ').length,3);
+});
+test('Şıklarda önce aynı gruptan aynı kategorideki terimler gelir; tanımda terim gizlenir',()=>{
+ const pool=[['a','Donanım'],['b','Donanım'],['c','Donanım'],['d','Donanım'],['e','Yazılım'],['f','Yazılım']].map(([id,category])=>({id,word:id,work:'g',category}));
+ for(let i=0;i<20;i++)assert.ok(!choices(pool[0],pool,4).some(x=>x.category==='Yazılım'));
+ assert.equal(hideWords('Avrupa Birliği’nin yapay zekâ sistemlerini düzenleyen yasası','Yapay Zekâ Yasası'),'Avrupa Birliği’nin ••• ••• sistemlerini düzenleyen •••');
+ assert.equal(hideWords('Verilerin saklandığı yer','Veri tabanı'),'••• saklandığı yer');
+ assert.equal(hideWords('Document Object Model. JavaScript sayfayı DOM üzerinden değiştirir.','DOM'),'•••. JavaScript sayfayı ••• üzerinden değiştirir.');
+ assert.equal(hideWords('Ağ üzerinden gelen istek','Ağ'),'Ağ üzerinden gelen istek','üç harften kısa sözcük gizlenmez');
 });

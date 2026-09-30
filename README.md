@@ -22,9 +22,13 @@ Her terimde: **terim**, **karşılığı** (İngilizce terimde Türkçesi, Türk
 | **Ana sayfa** | GençTek kırmızı vitrininde etkinlik seçimi; altta kart yapmak için terim listesi (kategori, çalışma grubu ve metin araması). |
 | **Sözlük** | Onaylı terimler çalışma grubu sırasıyla, 4–6 maddelik sayfalara dizilir; her grup bir bölümdür. Sayfa sonunda terim–tanım eşleştirmesi. |
 | **Çalışma Grupları** | Grup kartları (kapak ya da grup simgesi, tanıtım, terim sayısı). Gruba girilince terimler maskeli gelir; kısa tanımdan tahmin edilen kart açılır. Adı grup adında geçen terimler (Robotik → robot) baştan açıktır. |
-| **Oyun** | **Terimi Bul** (tanımdan gizli harfli terime; kolay %30 / zor %70, şıklı ya da yazılı) ve **Tanımını Bul** (terimden dört tanımdan doğrusuna). Çalışma grubuna göre süzme, oturum skoru ve seri. Karşılık ipucu, cevabı ele veriyorsa gizlenir. |
+| **Oyun** | 10 soruluk, soru başına 20 saniyelik tur. **Terimi Bul** (tanımdan terime) ve **Tanımını Bul** (terimden tanıma); kolayda 4 şık, zorda terim yazılır ya da 6 tanımdan seçilir. Puan = 100 + kalan saniye × 5 + seri bonusu; jokerler: yarı yarıya, harf aç, karşılık. Tur sonunda özet, yanlışları tekrar oynama ve bu tarayıcıda saklanan rekor. Cevabı ele veren ipuçları gizlenir: şıklı soruda harf deseni gösterilmez, tanımda ve şıklarda terimin sözcükleri ve kısaltma açılımları ••• olur, çeldiriciler aynı grup ve kategoriden seçilir. |
 | **Kart yap** | Terimi kendi cümlende kullanıp görselli terim kartı oluşturma; kartlar “Kartlarım”da birikir, kitapçık olarak yazdırılır. |
 | **+ Terim ekle** | Grup, terim, karşılık, kısa tanım, açıklama, örnek cümle. Öneri **onay bekler**; onaylanana kadar hiçbir bölümde görünmez. |
+
+Bölüm, çalışma grubu, sözlük sayfası ve açık terim adreste tutulur; geri tuşu, yenileme ve bağlantı paylaşma çalışır: `?bolum=sozluk&sayfa=12`, `?bolum=gruplar&grup=robotik`, `?terim=ping` (her bölümün üstüne terim penceresi açar). Bölüm adları: `sozluk`, `gruplar`, `oyun`, `ekle` (`&grup=` ile grup seçili gelir), `ortak`, `kartlarim`, `nasil`.
+
+Başlıktaki arama her bölümden terime ulaştırır; ana sayfadaki arama ızgarayı süzer. İkisi de büyük/küçük harf, şapka ve Türkçe harf farkını yok sayar (“yapay zeka” = “Yapay zekâ”) ve sonuçları önce terime, sonra karşılığına, en son tanımına göre sıralar. Ana sayfa ızgarası 24'er terimle açılır.
 
 Açılan kartlar, tamamlanan sayfalar ve oyun skoru yalnızca o tarayıcı sekmesinin oturumunda tutulur.
 
