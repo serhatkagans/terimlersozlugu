@@ -1,20 +1,26 @@
-import {authorized,covers,database,entry,findWord,illustrated,insertWord,removeWordArt,sameOrigin,saveWordArt,text,uniqueId} from '../../../../lib/server';
+import {readFile} from 'node:fs/promises';
+import {acceptProposal,authorized,covers,database,entry,findWord,illustrated,insertWord,proposalFile,proposals,removeProposal,removeWordArt,sameOrigin,saveWordArt,text,uniqueId} from '../../../../lib/server';
 import {generateImage,imageBudget,imageEnabled,wordPrompt} from '../../../../lib/ai';
 import {slug} from '../../../../lib/words';
 export const dynamic='force-dynamic';
 const fail=(error:string,status=400)=>Response.json({error},{status});
 const json=(p:unknown)=>Response.json(p);
-// Görevli için bütün terimler (öneriler ve gizlenenler dahil), çalışma grupları, terim resimleri ve kapaklar.
-export async function GET(request:Request){if(!authorized(request))return fail('Görevli anahtarı geçersiz.',401);const db=database();return json({words:db.prepare('SELECT * FROM words ORDER BY createdAt,rowid').all(),works:db.prepare('SELECT * FROM works ORDER BY rowid').all(),illustrated:illustrated(),covers:covers(),ai:imageEnabled()});}
+// Görevli için bütün terimler (öneriler ve gizlenenler dahil), çalışma grupları, terim resimleri, önerilen resimler ve kapaklar.
+// ?proposal=<kimlik>: öğrencinin önerdiği resmin kendisi (herkese açık adresi yoktur, yalnızca görevli görür).
+export async function GET(request:Request){if(!authorized(request))return fail('Görevli anahtarı geçersiz.',401);const proposal=new URL(request.url).searchParams.get('proposal');
+if(proposal){const found=proposalFile(proposal);return found?new Response(new Uint8Array(await readFile(found.file)),{headers:{'Content-Type':found.type,'Cache-Control':'private,no-store'}}):fail('Önerilen görsel bulunamadı.',404);}
+const db=database();return json({words:db.prepare('SELECT * FROM words ORDER BY createdAt,rowid').all(),works:db.prepare('SELECT * FROM works ORDER BY rowid').all(),illustrated:illustrated(),proposals:proposals(),covers:covers(),ai:imageEnabled()});}
 export async function POST(request:Request){if(!authorized(request)||!sameOrigin(request))return fail('Yetkisiz.',403);const db=database();try{const p=await request.json();
 // Toplu işlemler tek kimlik (id) ya da kimlik listesi (ids, en fazla 500) alır.
 const ids:string[]=(Array.isArray(p.ids)?p.ids:[p.id]).filter((x:unknown)=>typeof x==='string').slice(0,500);
 if(p.action==='toggle'){if(!ids.length)return fail('Geçersiz kelime.');const q=db.prepare('UPDATE words SET active = ? WHERE id = ?');db.transaction(()=>ids.forEach(id=>q.run(p.active?1:0,id)))();return json({ok:true,changed:ids.length});}
-// Öğrenci önerisini onaylar / reddeder (reddedilen kayıt silinmez, geri alınabilir).
-if(p.action==='status'){if(!ids.length||!['approved','rejected','pending'].includes(p.status))return fail('Geçersiz işlem.');const q=db.prepare('UPDATE words SET status = ? WHERE id = ?');let changed=0;db.transaction(()=>ids.forEach(id=>changed+=q.run(p.status,id).changes))();return changed?json({ok:true,changed}):fail('Kelime bulunamadı.',404);}
+// Öğrenci önerisini onaylar / reddeder (reddedilen kayıt silinmez, geri alınabilir). Onaylanan önerinin görseli varsa terim resmi olur.
+if(p.action==='status'){if(!ids.length||!['approved','rejected','pending'].includes(p.status))return fail('Geçersiz işlem.');const q=db.prepare('UPDATE words SET status = ? WHERE id = ?');let changed=0;db.transaction(()=>ids.forEach(id=>changed+=q.run(p.status,id).changes))();if(p.status==='approved')ids.forEach(acceptProposal);return changed?json({ok:true,changed}):fail('Kelime bulunamadı.',404);}
 // Kalıcı silme: terim kartı bağlı terimler silinmez (kart bozulur), onlar gizlenmelidir.
 if(p.action==='delete'){const used=db.prepare('SELECT COUNT(*) n FROM cards WHERE wordId = ?'),del=db.prepare('DELETE FROM words WHERE id = ?');const deleted:string[]=[],kept:string[]=[];
-db.transaction(()=>{for(const id of ids){if((used.get(id) as {n:number}).n){kept.push(id);continue;}if(del.run(id).changes)deleted.push(id);}})();deleted.forEach(removeWordArt);return json({ok:true,deleted,kept});}
+db.transaction(()=>{for(const id of ids){if((used.get(id) as {n:number}).n){kept.push(id);continue;}if(del.run(id).changes)deleted.push(id);}})();deleted.forEach(id=>{removeWordArt(id);removeProposal(id);});return json({ok:true,deleted,kept});}
+// Önerilen görseli terimden bağımsız reddeder (terim onay bekler ya da görselsiz onaylanır).
+if(p.action==='dropProposal'){ids.forEach(removeProposal);return json({ok:true});}
 // Toplu içe aktarma (CSV / Excel): her satır ayrı doğrulanır; çalışma grubu adı ya da kimliğiyle eşleşir. Görevlinin aktardığı terimler onaylı girer.
 if(p.action==='import'){if(!Array.isArray(p.rows)||!p.rows.length||p.rows.length>500)return fail('1–500 satır gönderin.');const works=db.prepare('SELECT id,title FROM works').all() as {id:string;title:string}[];const status=p.pending?'pending':'approved';
 const results=p.rows.map((r:Record<string,unknown>,i:number)=>{const name=String(r?.work??'').trim();const work=works.find(k=>k.id===name||slug(k.title)===slug(name));if(!work)return {row:i+1,ok:false,error:`Çalışma grubu bulunamadı: “${name||'—'}”`};
@@ -28,4 +34,4 @@ let work=p.word?.work;if(work==='__new'){const title=text(p.newWork?.title,2,80)
 const e=entry({...p.word,work});if(typeof e==='string')return fail(e);const word={...e,id:uniqueId('words',slug(e.word)),status:'approved'};insertWord(word);return json({word});
 }catch(e){console.error('Kelime işlemi başarısız',e);return fail('İşlem tamamlanamadı. Yapay zekâ kullanıldıysa biraz sonra tekrar deneyin.',503);}}
 // Kelime resmi yükleme: gövde doğrudan resim dosyasıdır (PNG, JPG veya WEBP; en fazla 8 MB).
-export async function PUT(request:Request){if(!authorized(request)||!sameOrigin(request))return fail('Yetkisiz.',403);const id=new URL(request.url).searchParams.get('id');if(!id||!database().prepare('SELECT 1 FROM words WHERE id = ?').get(id))return fail('Kelime bulunamadı.');if(Number(request.headers.get('content-length')||0)>8_000_000)return fail('Resim 8 MB’tan büyük olamaz.',413);const bytes=Buffer.from(await request.arrayBuffer());if(bytes.length>8_000_000)return fail('Resim 8 MB’tan büyük olamaz.',413);try{await saveWordArt(id,bytes);return json({ok:true});}catch(e){return fail(e instanceof Error?e.message:'Resim kaydedilemedi.');}}
+export async function PUT(request:Request){if(!authorized(request)||!sameOrigin(request))return fail('Yetkisiz.',403);const id=new URL(request.url).searchParams.get('id');if(!id||!database().prepare('SELECT 1 FROM words WHERE id = ?').get(id))return fail('Kelime bulunamadı.');if(Number(request.headers.get('content-length')||0)>8_000_000)return fail('Resim 8 MB’tan büyük olamaz.',413);const bytes=Buffer.from(await request.arrayBuffer());if(bytes.length>8_000_000)return fail('Resim 8 MB’tan büyük olamaz.',413);try{await saveWordArt(id,bytes);removeProposal(id);return json({ok:true});}catch(e){return fail(e instanceof Error?e.message:'Resim kaydedilemedi.');}}

@@ -1,17 +1,18 @@
 import Database from 'better-sqlite3';
 import {createHmac,timingSafeEqual} from 'node:crypto';
-import {mkdirSync,readdirSync,statSync,unlinkSync} from 'node:fs';
+import {mkdirSync,readdirSync,renameSync,statSync,unlinkSync} from 'node:fs';
 import {writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {art,categories,colors,emojiOf,fallbackArt,seedWords,seedWorks,slug,usesWord,wordArt,type Word,type Work} from './words';
-// Veriler DATA_DIR altında tutulur: terimler-sozlugu.db (kartlar, terimler, çalışma grupları), art/ (kart resimleri), art/kelimeler/ (terim resimleri) ve art/kapaklar/ (grup kapakları).
+// Veriler DATA_DIR altında tutulur: terimler-sozlugu.db (kartlar, terimler, çalışma grupları), art/ (kart resimleri), art/kelimeler/ (terim resimleri), art/kapaklar/ (grup kapakları) ve art/oneriler/ (öğrencinin önerdiği, onay bekleyen terim resimleri).
 const dataDir=path.resolve(/*turbopackIgnore: true*/ process.env.DATA_DIR||'data');
 export const artDir=path.join(dataDir,'art');
 export const wordArtDir=path.join(artDir,'kelimeler');
 export const coverDir=path.join(artDir,'kapaklar');
+export const proposalDir=path.join(artDir,'oneriler');
 export const runtime={get IMAGE_SERVICE_URL(){return process.env.IMAGE_SERVICE_URL;},get IMAGE_SERVICE_TOKEN(){return process.env.IMAGE_SERVICE_TOKEN;},get ADMIN_USER(){return process.env.ADMIN_USER;},get ADMIN_PASSWORD(){return process.env.ADMIN_PASSWORD;}};
 let db:Database.Database|undefined;
-export function database(){if(!db){mkdirSync(wordArtDir,{recursive:true});mkdirSync(coverDir,{recursive:true});db=new Database(path.join(dataDir,'terimler-sozlugu.db'));db.pragma('journal_mode = WAL');db.exec(`CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, wordId TEXT NOT NULL, sentence TEXT NOT NULL, nickname TEXT NOT NULL, scene TEXT NOT NULL, style TEXT NOT NULL, image TEXT NOT NULL, mode TEXT NOT NULL, createdAt INTEGER NOT NULL, approved INTEGER NOT NULL DEFAULT 0); CREATE INDEX IF NOT EXISTS cards_gallery ON cards(approved,createdAt);
+export function database(){if(!db){mkdirSync(wordArtDir,{recursive:true});mkdirSync(coverDir,{recursive:true});mkdirSync(proposalDir,{recursive:true});db=new Database(path.join(dataDir,'terimler-sozlugu.db'));db.pragma('journal_mode = WAL');db.exec(`CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, wordId TEXT NOT NULL, sentence TEXT NOT NULL, nickname TEXT NOT NULL, scene TEXT NOT NULL, style TEXT NOT NULL, image TEXT NOT NULL, mode TEXT NOT NULL, createdAt INTEGER NOT NULL, approved INTEGER NOT NULL DEFAULT 0); CREATE INDEX IF NOT EXISTS cards_gallery ON cards(approved,createdAt);
 CREATE TABLE IF NOT EXISTS works (id TEXT PRIMARY KEY, title TEXT NOT NULL, author TEXT NOT NULL, period TEXT NOT NULL DEFAULT '', month TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT 'terim');
 CREATE TABLE IF NOT EXISTS words (id TEXT PRIMARY KEY, word TEXT NOT NULL, syllables TEXT NOT NULL DEFAULT '', meaning TEXT NOT NULL, category TEXT NOT NULL, color TEXT NOT NULL, emoji TEXT NOT NULL, example TEXT NOT NULL, scene TEXT NOT NULL DEFAULT '', image TEXT NOT NULL, work TEXT NOT NULL, quote TEXT, note TEXT, active INTEGER NOT NULL DEFAULT 1, createdAt INTEGER NOT NULL DEFAULT 0, oldMeaning TEXT, addedBy TEXT, status TEXT NOT NULL DEFAULT 'approved');`);migrate(db);seed(db);}return db;}
 // Eski veritabanlarına yeni sütunları ekler (veri kaybı olmadan).
@@ -38,15 +39,23 @@ async function saveImage(dir:string,id:string,bytes:Buffer){const ext=imageType(
 export const illustrated=()=>versions(wordArtDir),covers=()=>versions(coverDir);
 export const wordArtFile=(id:string)=>imageFile(wordArtDir,id),coverFile=(id:string)=>imageFile(coverDir,id);
 export const saveWordArt=(id:string,bytes:Buffer)=>saveImage(wordArtDir,id,bytes),saveCover=(id:string,bytes:Buffer)=>saveImage(coverDir,id,bytes);
-export function removeWordArt(id:string){database();for(const f of readdirSync(wordArtDir))if(f.split('.')[0]===id)unlinkSync(path.join(wordArtDir,f));}
+function removeImage(dir:string,id:string){database();for(const f of readdirSync(dir))if(f.split('.')[0]===id)unlinkSync(path.join(dir,f));}
+export const removeWordArt=(id:string)=>removeImage(wordArtDir,id);
+// Öğrencinin terim önerisiyle gönderdiği resim sözlükte görünmez; görevli terimi onaylayınca terim resmi olur (görevli kendisi resim yüklediyse onunki kalır).
+export const proposals=()=>versions(proposalDir),proposalFile=(id:string)=>imageFile(proposalDir,id);
+export const saveProposal=(id:string,bytes:Buffer)=>saveImage(proposalDir,id,bytes),removeProposal=(id:string)=>removeImage(proposalDir,id);
+export function acceptProposal(id:string){const p=proposalFile(id);if(!p)return;if(wordArtFile(id)){unlinkSync(p.file);return;}renameSync(p.file,path.join(wordArtDir,path.basename(p.file)));}
 export function wordImage(w:Word){const v=illustrated()[w.id];return v?wordArt(w.id,v):art(w.image);}
 export function imageType(b:Buffer){if(b[0]===0x89&&b[1]===0x50&&b[2]===0x4e&&b[3]===0x47)return 'png';if(b[0]===0xff&&b[1]===0xd8&&b[2]===0xff)return 'jpg';if(b.subarray(0,4).toString()==='RIFF'&&b.subarray(8,12).toString()==='WEBP')return 'webp';return undefined;}
 export function contentType(ext:string){return exts[ext];}
 // Görevli girişi kullanıcı adı + şifreyle yapılır (kullanıcı adında büyük/küçük harf ve baştaki/sondaki boşluklar önemsenmez; telefon ilk harfi büyütüyor); tarayıcıya şifre yerine ondan türetilen oturum anahtarı verilir. Şifre değişince eski oturumlar geçersiz olur.
 const same=(a:string,b:string)=>{const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);};
-export function adminSession(){const {ADMIN_USER:u,ADMIN_PASSWORD:p}=runtime;return u&&p?createHmac('sha256',p).update(`genctek-terimler:${u}`).digest('hex'):undefined;}
-export function checkLogin(user:unknown,password:unknown){const {ADMIN_USER:u,ADMIN_PASSWORD:p}=runtime;return !!u&&!!p&&typeof user==='string'&&typeof password==='string'&&same(user.trim().toLowerCase(),u.trim().toLowerCase())&&same(password.trim(),p.trim());}
-export function authorized(request:Request){const s=adminSession();return !!s&&same(request.headers.get('authorization')||'',`Bearer ${s}`);}
+// Ek görevli hesapları ADMIN_USER_2 / ADMIN_PASSWORD_2 … ADMIN_USER_9 / ADMIN_PASSWORD_9 ile tanımlanır; her hesabın oturum anahtarı ayrıdır.
+export function adminAccounts(){const out:{user:string;password:string}[]=[];for(const n of ['','_2','_3','_4','_5','_6','_7','_8','_9']){const u=process.env[`ADMIN_USER${n}`],p=process.env[`ADMIN_PASSWORD${n}`];if(u?.trim()&&p?.trim())out.push({user:u,password:p});}return out;}
+const sessionOf=(a:{user:string;password:string})=>createHmac('sha256',a.password).update(`genctek-terimler:${a.user}`).digest('hex');
+// Kullanıcı adı ve şifre doğruysa o hesabın oturum anahtarını döndürür.
+export function checkLogin(user:unknown,password:unknown){if(typeof user!=='string'||typeof password!=='string')return undefined;const a=adminAccounts().find(a=>same(user.trim().toLowerCase(),a.user.trim().toLowerCase())&&same(password.trim(),a.password.trim()));return a?sessionOf(a):undefined;}
+export function authorized(request:Request){const h=request.headers.get('authorization')||'';return adminAccounts().some(a=>same(h,`Bearer ${sessionOf(a)}`));}
 // nginx arkasında request.url iç adresi gösterebilir; bu yüzden Origin, istemcinin gördüğü host ile karşılaştırılır.
 export function sameOrigin(request:Request){const origin=request.headers.get('origin');if(!origin)return true;const host=request.headers.get('x-forwarded-host')||request.headers.get('host');try{return new URL(origin).host===host;}catch{return false;}}
 // Basit bellek içi sınırlayıcı. Etkinlikte öğrenciler aynı ağdan (aynı IP) geldiği için sınırlar geniş tutulur.
