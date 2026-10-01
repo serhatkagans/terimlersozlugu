@@ -9,7 +9,8 @@ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.01);g.gain.expo
 const seq=(fs:number[],step:number,dur?:number,vol?:number,type?:OscillatorType)=>fs.forEach((f,i)=>note(f,i*step,dur,vol,type));
 export const sfx={join:()=>seq([660,880],.07,.12,.08),start:()=>seq([392,523,659,784],.09,.2),open:()=>seq([784,1047],.08,.15),tick:()=>note(880,0,.08,.06,'square'),
 correct:()=>seq([523,659,784,1047],.08,.25,.12),wrong:()=>seq([311,233],.16,.3,.1,'sawtooth'),reveal:()=>seq([784,988,1175],.1,.3),board:()=>seq([440,554,659],.08,.2),
-fanfare:()=>seq([523,523,523,659,784,659,784,1047],.14,.4,.13)};
+// Podyum: üçüncü ve ikinci için birer nota, davul, sonra birinciyle fanfar (ekrandaki açılış süreleriyle aynı).
+fanfare:()=>{note(523,.6,.3);note(659,2.2,.3);for(let t=3;t<4.15;t+=.07)note(180,t,.06,.06,'square');[523,523,523,659,784,659,784,1047].forEach((f,i)=>note(f,4.2+i*.14,.4,.13));}};
 // Arka plan müziği: bekleme salonunda neşeli bir arpej, soru sırasında düşünme ritmi.
 const tunes={lobby:{notes:[262,330,392,523,392,330,294,349,440,587,440,349],step:260,dur:.22},think:{notes:[196,0,196,247,0,196,0,294],step:300,dur:.12}};
 export function music(m:'lobby'|'think'|null){if(m===mode)return;mode=m;clearInterval(loop);loop=undefined;if(!m)return;const t=tunes[m];let i=0;
