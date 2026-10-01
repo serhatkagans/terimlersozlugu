@@ -226,6 +226,9 @@ body{border-top:4px solid var(--orange)}
 .primary:hover:not(:disabled){background:var(--orange-dark)}
 .festival{font-style:normal;color:var(--orange)}
 .festival small{color:var(--muted)}
+/* Slogan GENÇTEK yazısının üstünde ve altında birer satır. */
+.festival{text-align:center;line-height:1.1}
+.festival small{margin:4px 0;white-space:nowrap;letter-spacing:1.2px}
 .brand-icon{letter-spacing:-4px}
 /* Ana sayfa vitrini: GençTek'teki kırmızı gradyan; üstünde beyaz etkinlik kartları. */
 .home-start{background:linear-gradient(135deg,#d1494e 0%,#c4161c 45%,#7d0e12 100%);color:#fff;border-radius:18px;padding:40px 40px 32px;margin-top:28px}
