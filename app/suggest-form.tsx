@@ -8,7 +8,7 @@ const g=c.getContext('2d')!;g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);
 export function WorkOptions({works}:{works:Work[]}){return <>{works.map(k=><option key={k.id} value={k.id}>{emojiOf(k.id)} {k.title}</option>)}</>;}
 // Terim önerme formu. Gönderilen terim (ve isteğe bağlı görseli) görevli onayına düşer; onaylanana kadar sözlükte görünmez.
 export default function SuggestForm({works,initialWork}:{works:Work[];initialWork:string}){
-const [f,setF]=useState({...empty,work:initialWork||works[0]?.id||'',addedBy:''}),[busy,setBusy]=useState(false),[error,setError]=useState(''),[sent,setSent]=useState<string[]>([]),[image,setImage]=useState<{blob:Blob;url:string}|null>(null),[drag,setDrag]=useState(false);
+const [f,setF]=useState({...empty,work:initialWork||works[0]?.id||'',name:'',school:''}),[busy,setBusy]=useState(false),[error,setError]=useState(''),[sent,setSent]=useState<string[]>([]),[image,setImage]=useState<{blob:Blob;url:string}|null>(null),[drag,setDrag]=useState(false);
 useEffect(()=>()=>{if(image)URL.revokeObjectURL(image.url);},[image]);
 const set=(k:keyof typeof f)=>(e:{target:{value:string}})=>{setF({...f,[k]:e.target.value});setError('');};
 const work=works.find(k=>k.id===f.work),l=kindOf(work);
@@ -28,6 +28,7 @@ return <section className="standalone suggest"><div className="eyebrow">SÖZLÜ�
 {image?<div className="image-drop chosen"><img src={image.url} alt="Önerdiğin görsel"/><div><b>✓ Görsel eklendi</b><small>Görevli terimle birlikte onaylarsa sözlükte kullanılır.</small><div className="button-row start"><label className="secondary image-change">Değiştir<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{void pick(e.target.files?.[0]);e.target.value='';}}/></label><button type="button" className="text-button" onClick={()=>setImage(null)}>Kaldır</button></div></div></div>
 :<label className={`image-drop${drag?' over':''}`} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);void pick(e.dataTransfer.files?.[0]);}}><span className="image-drop-icon" aria-hidden="true">🖼️</span><b>Görsel seç</b><span>ya da buraya sürükleyip bırak</span><small>PNG, JPG ya da WEBP · Terimi anlatan bir çizim ya da görsel</small><input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{void pick(e.target.files?.[0]);e.target.value='';}}/></label>}
 <small className="image-note">İnsan yüzü, kişisel bilgi ya da başkasına ait logolu görsel koyma.</small></div>
-<label>Adın ve sınıfın <small>(isteğe bağlı)</small><input maxLength={40} placeholder="Örn. Elif, 10-B" value={f.addedBy} onChange={set('addedBy')}/><small>Soyadını, okulunu veya iletişim bilgini yazma.</small></label>
+<div className="form-row"><label>Adın ve soyadın *<input required minLength={5} maxLength={50} autoComplete="name" placeholder="Örn. Elif Yılmaz" value={f.name} onChange={set('name')}/></label><label>Okulun *<input required minLength={3} maxLength={60} placeholder="Örn. Atatürk Anadolu Lisesi" value={f.school} onChange={set('school')}/></label></div>
+<small className="image-note">Üyelik ya da kayıt gerekmez. Terim onaylanınca adın ve okulun sözlükte “Ekleyen” olarak görünür.</small>
 {error&&<p className="error" role="alert">{error}</p>}
 <button className="primary wide" disabled={busy||!exampleOk}>{busy?'Gönderiliyor…':'Görevli onayına gönder ↗'}</button></form></section>;}

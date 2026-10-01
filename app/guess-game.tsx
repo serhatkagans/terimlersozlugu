@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
-import {emojiOf,workOf,type Word,type Work} from '../lib/words';
+import {base,emojiOf,workOf,type Word,type Work} from '../lib/words';
 import {choices,fold,hideWords,inTitle,mask,sameWord,seeded,shuffle} from '../lib/game';
 import {hint,Meanings,Pic} from './dict-ui';
 // Terim oyunu: 10 soruluk, süreli, puanlı tur. İki yön: "Terimi Bul" (tanımdan terime) ve "Tanımını Bul" (terimden tanıma).
@@ -10,7 +10,7 @@ import {hint,Meanings,Pic} from './dict-ui';
 const ROUND=10,TIME=20,FIFTY=1,LETTERS=3;
 type Ask='word'|'meaning';type Level='kolay'|'zor';type Phase='setup'|'play'|'end';
 type Q={w:Word;options:Word[]};type Answer={w:Word;ok:boolean;points:number};
-const recordKey='gt-oyun-rekor';
+const recordKey='gt-oyun-rekor',nameKey='gt-oyun-ad';
 function readRecords():Record<string,number>{try{const v=JSON.parse(localStorage.getItem(recordKey)||'{}');return v&&typeof v==='object'?v:{};}catch{return {};}}
 function saveRecord(key:string,score:number){try{localStorage.setItem(recordKey,JSON.stringify({...readRecords(),[key]:score}));}catch{}}
 // Karşılık terimin 3 harften uzun bir sözcüğünü içeriyorsa cevabı ele verir ("Dijkstra algoritması" → "Dijkstra's algorithm").
@@ -21,6 +21,12 @@ const [ask,setAsk]=useState<Ask>('word'),[level,setLevel]=useState<Level>('kolay
 const [qs,setQs]=useState<Q[]>([]),[at,setAt]=useState(0),[answers,setAnswers]=useState<Answer[]>([]),[picked,setPicked]=useState<string|null>(null),[text,setText]=useState('');
 const [deadline,setDeadline]=useState(0),[now,setNow]=useState(0),[removed,setRemoved]=useState<string[]>([]),[shown,setShown]=useState(0),[pairShown,setPairShown]=useState(false);
 const [fifty,setFifty]=useState(FIFTY),[letters,setLetters]=useState(LETTERS),[record,setRecord]=useState<{best:number;isNew:boolean}>({best:0,isNew:false});
+// En yüksek skorlar veritabanında tutulur (/api/scores); üyelik yoktur, oyuncu tur sonunda adını yazarak skorunu kaydeder.
+const [top,setTop]=useState<{name:string;score:number}[]>([]),[player,setPlayer]=useState(()=>{try{return localStorage.getItem(nameKey)||'';}catch{return '';}}),[saved,setSaved]=useState(false),[saving,setSaving]=useState(false),[scoreError,setScoreError]=useState('');
+const mode=`${ask}-${level}`;
+useEffect(()=>{let on=true;fetch(`${base}/api/scores?mode=${mode}`).then(r=>r.json()).then(d=>{if(on)setTop(Array.isArray(d.top)?d.top:[]);}).catch(()=>{});return()=>{on=false;};},[mode]);
+async function saveScore(total:number){if(saving||saved||player.trim().length<2)return;setSaving(true);setScoreError('');try{const r=await fetch(base+'/api/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:player.trim(),mode,score:total})});const d=await r.json();if(!r.ok)throw Error(d.error);setTop(d.top);setSaved(true);try{localStorage.setItem(nameKey,player.trim());}catch{}}catch(e){setScoreError(e instanceof Error?e.message:'Skorun kaydedilemedi.');}finally{setSaving(false);}}
+const board=<div className="game-field"><h2 className="game-label"><span aria-hidden="true">🏆</span>En yüksek skorlar · {ask==='word'?'Terimi Bul':'Tanımını Bul'}, {level==='kolay'?'Kolay':'Zor'}</h2>{top.length?<ol className="game-review">{top.map((t,i)=><li key={t.name}><span aria-hidden="true">{i+1}</span><div><b>{t.name}</b></div><em>{t.score}</em></li>)}</ol>:<p>Henüz kayıtlı skor yok. İlk sen ol!</p>}</div>;
 const pool=words.filter(w=>!group||w.work===group),active=works.filter(k=>words.some(w=>w.work===k.id));
 const typing=ask==='word'&&level==='zor',count=ask==='meaning'&&level==='zor'?6:4,key=`${ask}-${level}`;
 const q=qs[at],k=q&&workOf(works,q.w);
@@ -28,7 +34,7 @@ const left=Math.max(0,(deadline-now)/1000),streak=answers.length?answers.slice()
 const score=answers.reduce((s,a)=>s+a.points,0),answered=picked!==null;
 function start(list=pool){const chosen=shuffle(list).slice(0,ROUND);
 setQs(chosen.map(w=>({w,options:choices(w,words,count,Math.random,ask==='meaning'?hint:undefined)})));
-setAnswers([]);setFifty(FIFTY);setLetters(LETTERS);setPhase('play');ask0(0);}
+setAnswers([]);setSaved(false);setScoreError('');setFifty(FIFTY);setLetters(LETTERS);setPhase('play');ask0(0);}
 function ask0(i:number){setAt(i);setPicked(null);setText('');setRemoved([]);setShown(0);setPairShown(false);const t=Date.now();setNow(t);setDeadline(t+TIME*1000);}
 // Puan: 100 + kalan saniye × 5 + seri bonusu (her ardışık doğru +10, en çok +50). Açılan harf −25, karşılık ipucu −30; en az 20.
 function answer(id:string|null){if(!q||answered)return;const ok=id!==null&&(typing?sameWord(id,q.w.word):id===q.w.id);
@@ -47,15 +53,24 @@ const order=q?shuffle([...q.w.word].map((c,i)=>isLetter(c)?i:-1).filter(i=>i>=0)
 const open=new Set(order.slice(0,Math.min(shown,Math.max(0,order.length-1))));
 const tiles=q?[...q.w.word.toLocaleUpperCase('tr')].map((c,i)=>({c,letter:isLetter(c),open:answered||open.has(i)})):[];
 const settings=<div className="game-setup">
-<div className="chips game-type" role="radiogroup" aria-label="Oyun">{([['word','Terimi Bul','Tanımı oku, terimi bul'],['meaning','Tanımını Bul','Terimi oku, tanımını seç']] as const).map(([a,t,d])=><button key={a} role="radio" aria-checked={ask===a} className={ask===a?'chosen':''} onClick={()=>setAsk(a)}><b>{t}</b><small>{d}</small></button>)}</div>
-<div className="chips game-type" role="radiogroup" aria-label="Zorluk">{([['kolay','Kolay',ask==='word'?'4 şıktan seç':'4 tanımdan seç'],['zor','Zor',ask==='word'?'Terimi kendin yaz':'6 tanımdan seç']] as const).map(([v,t,d])=><button key={v} role="radio" aria-checked={level===v} className={level===v?'chosen':''} onClick={()=>setLevel(v)}><b>{t}</b><small>{d}</small></button>)}</div>
-<label className="search group-select"><span aria-hidden="true">▦</span><select aria-label="Çalışma grubu" value={group} onChange={e=>setGroup(e.target.value)}><option value="">Bütün çalışma grupları</option>{active.map(k=><option key={k.id} value={k.id}>{emojiOf(k.id)} {k.title}</option>)}</select></label></div>;
-if(phase==='setup')return <section className="standalone game"><div className="eyebrow">TERİM OYUNU · {ROUND} SORU · SORU BAŞINA {TIME} SANİYE</div><h1>Oyna, <em>öğren.</em></h1>
-<p>Hızlı cevap daha çok puan getirir; art arda doğrular seri bonusu kazandırır. Takılırsan jokerlerini kullan: <b>yarı yarıya</b> iki yanlış şıkkı eler, <b>harf aç</b> terimden bir harf gösterir, <b>karşılık</b> İngilizce ya da Türkçe karşılığı gösterir.</p>
-{settings}<div className="game-start">{pool.length<2?<p>Bu grupta oyun için yeterli terim yok.</p>:<button className="primary" onClick={()=>start()}>Oyunu başlat ↗</button>}<small>Rekorun: <b>{readRecords()[key]??0}</b> puan</small></div></section>;
+<div className="game-field"><h2 className="game-label"><span>1</span>Oyun türü</h2><div className="game-type" role="radiogroup" aria-label="Oyun">{([['word','🎯','Terimi Bul','Tanımı oku, terimi bul'],['meaning','📖','Tanımını Bul','Terimi oku, tanımını seç']] as const).map(([a,i,t,d])=><button key={a} role="radio" aria-checked={ask===a} className={ask===a?'chosen':''} onClick={()=>setAsk(a)}><i aria-hidden="true">{i}</i><span><b>{t}</b><small>{d}</small></span></button>)}</div></div>
+<div className="game-field"><h2 className="game-label"><span>2</span>Zorluk</h2><div className="game-type" role="radiogroup" aria-label="Zorluk">{([['kolay','🌱','Kolay',ask==='word'?'4 şıktan seç':'4 tanımdan seç'],['zor','🔥','Zor',ask==='word'?'Terimi kendin yaz':'6 tanımdan seç']] as const).map(([v,i,t,d])=><button key={v} role="radio" aria-checked={level===v} className={level===v?'chosen':''} onClick={()=>setLevel(v)}><i aria-hidden="true">{i}</i><span><b>{t}</b><small>{d}</small></span></button>)}</div></div>
+<div className="game-field"><h2 className="game-label"><span>3</span>Çalışma grubu</h2><label className="search group-select"><span aria-hidden="true">▦</span><select aria-label="Çalışma grubu" value={group} onChange={e=>setGroup(e.target.value)}><option value="">Bütün çalışma grupları</option>{active.map(k=><option key={k.id} value={k.id}>{emojiOf(k.id)} {k.title}</option>)}</select></label></div></div>;
+if(phase==='setup')return <section className="standalone game"><header className="game-hero"><div><div className="eyebrow">TERİM OYUNU</div><h1>Oyna, <em>öğren.</em></h1>
+<p>Hızlı cevap daha çok puan getirir; art arda doğrular seri bonusu kazandırır.</p>
+<ul className="game-facts"><li><b>{ROUND}</b> soru</li><li>Soru başına <b>{TIME}</b> saniye</li><li><b>3</b> joker</li></ul></div>
+<div className="game-record"><span aria-hidden="true">🏆</span><b>{readRecords()[key]??0}</b><small>Rekorun · {ask==='word'?'Terimi Bul':'Tanımını Bul'}, {level==='kolay'?'Kolay':'Zor'}</small></div></header>
+<div className="game-panel">{settings}
+<ul className="joker-info" aria-label="Jokerler"><li><b>½ Yarı yarıya</b><small>İki yanlış şıkkı eler</small></li><li><b>🔤 Harf aç</b><small>Terimden bir harf gösterir</small></li><li><b>🌐 Karşılık</b><small>İngilizce ya da Türkçe karşılığı gösterir</small></li></ul>
+<div className="game-start">{pool.length<2?<p>Bu grupta oyun için yeterli terim yok.</p>:<button className="primary" onClick={()=>start()}>Oyunu başlat ↗</button>}</div>{board}</div></section>;
 if(phase==='end'){const right=answers.filter(a=>a.ok).length,missed=answers.filter(a=>!a.ok).map(a=>a.w);
-return <section className="standalone game"><div className="eyebrow">TUR BİTTİ</div><h1>{right>=8?<>Harika <em>iş!</em></>:right>=5?<>İyi <em>gidiyor.</em></>:<>Tekrar <em>dene.</em></>}</h1>
-<div className="game-summary"><div><b>{score}</b><small>puan</small></div><div><b>{right}/{answers.length}</b><small>doğru</small></div><div><b>{record.best}</b><small>{record.isNew?'✦ Yeni rekor!':'rekor'}</small></div></div>
+return <section className="standalone game game-end"><header className="game-hero"><div><div className="eyebrow">TUR BİTTİ</div><h1>{right>=8?<>Harika <em>iş!</em></>:right>=5?<>İyi <em>gidiyor.</em></>:<>Tekrar <em>dene.</em></>}</h1>
+<p>{answers.length} sorudan {right} tanesini doğru bildin.</p></div>
+<div className="game-record"><span aria-hidden="true">{record.isNew?'🏆':'⭐'}</span><b>{score}</b><small>{record.isNew?'puan · ✦ Yeni rekor!':'puan'}</small></div></header>
+<div className="game-summary"><div className="ok"><b>{right}</b><small>doğru</small></div><div className="no"><b>{answers.length-right}</b><small>yanlış</small></div><div><b>{record.best}</b><small>rekor</small></div></div>
+{score>0&&(saved?<p className="notice" role="status">✓ Skorun kaydedildi.</p>:<form className="guess-text" onSubmit={e=>{e.preventDefault();void saveScore(score);}}><label className="sr-only" htmlFor="score-name">Adın</label><input id="score-name" required minLength={2} maxLength={40} placeholder="Skorunu kaydetmek için adını yaz…" value={player} onChange={e=>setPlayer(e.target.value)}/><button className="primary" disabled={saving||player.trim().length<2}>{saving?'Kaydediliyor…':'Skoru kaydet'}</button></form>)}
+{scoreError&&<p className="error" role="alert">{scoreError}</p>}
+{board}
 <div className="button-row start">{missed.length>1&&<button className="primary" onClick={()=>start(missed)}>Yanlışlarımı tekrar oyna</button>}<button className={missed.length>1?'secondary':'primary'} onClick={()=>start()}>Yeni tur ↗</button><button className="text-button" onClick={()=>setPhase('setup')}>Ayarları değiştir</button></div>
 <ol className="game-review">{answers.map((a,i)=><li key={i} className={a.ok?'ok':'no'}><span aria-label={a.ok?'Doğru':'Yanlış'}>{a.ok?'✓':'✗'}</span><div><b>{onOpen?<button className="link" onClick={()=>onOpen(a.w)}>{a.w.word}</button>:a.w.word}</b><small>{hint(a.w)}</small></div><em>{a.ok?`+${a.points}`:'0'}</em></li>)}</ol></section>;}
 return <section className="standalone game"><div className="game-top"><span>Soru <b>{at+1}</b>/{qs.length}</span><span>Puan <b>{score}</b></span><span>🔥 Seri <b>{run}</b></span><button className="text-button" onClick={()=>setPhase('setup')}>Turu bitir</button></div>

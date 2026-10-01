@@ -10,11 +10,11 @@ test('A card is durable, retrievable and private until approved',async()=>{
 });
 test('A term suggestion stays hidden until approved',async()=>{
  const word='deneme'+Date.now().toString(36);
- const response=await fetch(base+'/api/words',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word,work:'oyun-tasarimi',oldMeaning:'Test tanımı',example:`Bu bir ${word} cümlesidir.`,addedBy:'Test'})});
+ const response=await fetch(base+'/api/words',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word,work:'oyun-tasarimi',oldMeaning:'Test tanımı',example:`Bu bir ${word} cümlesidir.`,name:'Test Öğrenci',school:'Test Lisesi'})});
  assert.equal(response.status,201);const {word:saved}=await response.json();assert.equal(saved.status,'pending');
  assert.ok(!(await (await fetch(base+'/')).text()).includes(word),'onaysız öneri sayfada görünmemeli');
- const duplicate=await fetch(base+'/api/words',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:'Shader',work:'oyun-tasarimi',oldMeaning:'Görünüm hesabı',example:'Suyu bir Shader ile parlattık.'})});assert.equal(duplicate.status,400);
- const missing=await fetch(base+'/api/words',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:'Raycast',work:'oyun-tasarimi',oldMeaning:'Işın gönderme',example:'Bu cümlede o terim hiç yok.'})});assert.equal(missing.status,400);
+ const duplicate=await fetch(base+'/api/words',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:'Shader',work:'oyun-tasarimi',oldMeaning:'Görünüm hesabı',example:'Suyu bir Shader ile parlattık.',name:'Test Öğrenci',school:'Test Lisesi'})});assert.equal(duplicate.status,400);
+ const missing=await fetch(base+'/api/words',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:'Raycast',work:'oyun-tasarimi',oldMeaning:'Işın gönderme',example:'Bu cümlede o terim hiç yok.',name:'Test Öğrenci',school:'Test Lisesi'})});assert.equal(missing.status,400);
 });
 test('Invalid input and cross-origin writes are refused',async()=>{
  const invalid=await fetch(base+'/api/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({wordId:'unknown'})});assert.equal(invalid.status,400);

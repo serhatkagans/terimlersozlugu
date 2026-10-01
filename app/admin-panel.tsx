@@ -25,7 +25,7 @@ return <form className="admin-form" onSubmit={e=>{e.preventDefault();submit(f);}
 <label>{l.old} *<textarea required rows={2} maxLength={300} placeholder={l.oldHint} value={f.oldMeaning} onChange={set('oldMeaning')}/></label>
 <label>{l.now} <small>(boşsa kısa tanım kullanılır)</small><textarea rows={3} maxLength={300} value={f.meaning} onChange={set('meaning')}/></label>
 <label>Örnek cümle * <small>(terimi içermeli)</small><textarea required rows={2} maxLength={240} value={f.example} onChange={set('example')}/></label>
-<label>Ekleyen<input maxLength={40} value={f.addedBy} onChange={set('addedBy')}/></label>
+<label>Ekleyen<input maxLength={120}value={f.addedBy} onChange={set('addedBy')}/></label>
 <details><summary>Ek alanlar (terim kartı için)</summary><div className="form-row"><label>Simge<input maxLength={4} placeholder="✦" value={f.emoji} onChange={set('emoji')}/></label></div>
 <label>Ek not <small>(kartta tanımın altında görünür)</small><textarea rows={2} maxLength={400} value={f.note} onChange={set('note')}/></label><label>Sahne fikri <small>(görsel üretimi için)</small><textarea rows={2} maxLength={400} value={f.scene} onChange={set('scene')}/></label></details>
 {children}<div className="button-row start"><button className="primary" disabled={busy}>{busy?'Kaydediliyor…':'Kaydet'}</button></div></form>;}
