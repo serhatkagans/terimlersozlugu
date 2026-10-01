@@ -9,7 +9,7 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
-    "test": "node --test tests/words.test.mjs tests/game.test.mjs tests/workflow.test.mjs",
+    "test": "node --test tests/words.test.mjs tests/game.test.mjs tests/workflow.test.mjs tests/live.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {
