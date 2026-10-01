@@ -26,7 +26,7 @@ Her terimde: **terim**, **karşılığı** (İngilizce terimde Türkçesi, Türk
 | **Kart yap** | Terimi kendi cümlende kullanıp görselli terim kartı oluşturma; kartlar “Kartlarım”da birikir, kitapçık olarak yazdırılır. |
 | **+ Terim ekle** | Grup, terim, karşılık, kısa tanım, açıklama, örnek cümle. Öneri **onay bekler**; onaylanana kadar hiçbir bölümde görünmez. |
 
-Bölüm, çalışma grubu, sözlük sayfası ve açık terim adreste tutulur; geri tuşu, yenileme ve bağlantı paylaşma çalışır: `?bolum=sozluk&sayfa=12`, `?bolum=gruplar&grup=robotik`, `?terim=ping` (her bölümün üstüne terim penceresi açar). Bölüm adları: `sozluk`, `gruplar`, `oyun`, `ekle` (`&grup=` ile grup seçili gelir), `ortak`, `kartlarim`, `nasil`.
+Bölüm, çalışma grubu, sözlük sayfası ve açık terim adreste tutulur; geri tuşu, yenileme ve bağlantı paylaşma çalışır: `?bolum=sozluk&sayfa=12`, `?bolum=gruplar&grup=robotik`, `?terim=ping` (her bölümün üstüne terim penceresi açar). Bölüm adları: `sozluk`, `gruplar`, `oyun`, `ekle` (`&grup=` ile grup seçili gelir), `ortak`, `kartlarim`, `nasil`, `ekleyenler`, `ogrenci-terimleri` (öğrencilerin önerip onay alan terimleri).
 
 Başlıktaki arama her bölümden terime ulaştırır; ana sayfadaki arama ızgarayı süzer. İkisi de büyük/küçük harf, şapka ve Türkçe harf farkını yok sayar (“yapay zeka” = “Yapay zekâ”) ve sonuçları önce terime, sonra karşılığına, en son tanımına göre sıralar. Ana sayfa ızgarası 24'er terimle açılır.
 
