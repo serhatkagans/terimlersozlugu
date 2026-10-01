@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import {createHmac,timingSafeEqual} from 'node:crypto';
+import {createHmac,randomInt,timingSafeEqual} from 'node:crypto';
 import {mkdirSync,readdirSync,renameSync,statSync,unlinkSync} from 'node:fs';
 import {writeFile} from 'node:fs/promises';
 import path from 'node:path';
@@ -15,9 +15,10 @@ let db:Database.Database|undefined;
 export function database(){if(!db){mkdirSync(wordArtDir,{recursive:true});mkdirSync(coverDir,{recursive:true});mkdirSync(proposalDir,{recursive:true});db=new Database(path.join(dataDir,'terimler-sozlugu.db'));db.pragma('journal_mode = WAL');db.exec(`CREATE TABLE IF NOT EXISTS cards (id TEXT PRIMARY KEY, wordId TEXT NOT NULL, sentence TEXT NOT NULL, nickname TEXT NOT NULL, scene TEXT NOT NULL, style TEXT NOT NULL, image TEXT NOT NULL, mode TEXT NOT NULL, createdAt INTEGER NOT NULL, approved INTEGER NOT NULL DEFAULT 0); CREATE INDEX IF NOT EXISTS cards_gallery ON cards(approved,createdAt);
 CREATE TABLE IF NOT EXISTS works (id TEXT PRIMARY KEY, title TEXT NOT NULL, author TEXT NOT NULL, period TEXT NOT NULL DEFAULT '', month TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT 'terim');
 CREATE TABLE IF NOT EXISTS words (id TEXT PRIMARY KEY, word TEXT NOT NULL, syllables TEXT NOT NULL DEFAULT '', meaning TEXT NOT NULL, category TEXT NOT NULL, color TEXT NOT NULL, emoji TEXT NOT NULL, example TEXT NOT NULL, scene TEXT NOT NULL DEFAULT '', image TEXT NOT NULL, work TEXT NOT NULL, quote TEXT, note TEXT, active INTEGER NOT NULL DEFAULT 1, createdAt INTEGER NOT NULL DEFAULT 0, oldMeaning TEXT, addedBy TEXT, status TEXT NOT NULL DEFAULT 'approved');
-CREATE TABLE IF NOT EXISTS scores (id INTEGER PRIMARY KEY, name TEXT NOT NULL, mode TEXT NOT NULL, score INTEGER NOT NULL, createdAt INTEGER NOT NULL); CREATE INDEX IF NOT EXISTS scores_mode ON scores(mode,score);`);migrate(db);seed(db);}return db;}
+CREATE TABLE IF NOT EXISTS scores (id INTEGER PRIMARY KEY, name TEXT NOT NULL, mode TEXT NOT NULL, score INTEGER NOT NULL, createdAt INTEGER NOT NULL, class TEXT NOT NULL DEFAULT ''); CREATE INDEX IF NOT EXISTS scores_mode ON scores(mode,score);
+CREATE TABLE IF NOT EXISTS classes (code TEXT PRIMARY KEY, label TEXT NOT NULL, mode TEXT NOT NULL, grp TEXT NOT NULL DEFAULT '', createdAt INTEGER NOT NULL);`);migrate(db);seed(db);}return db;}
 // Eski veritabanlarına yeni sütunları ekler (veri kaybı olmadan).
-function migrate(d:Database.Database){const has=(t:string,c:string)=>(d.prepare(`PRAGMA table_info(${t})`).all() as {name:string}[]).some(x=>x.name===c);if(!has('works','month'))d.exec("ALTER TABLE works ADD COLUMN month TEXT NOT NULL DEFAULT ''");if(!has('works','kind'))d.exec("ALTER TABLE works ADD COLUMN kind TEXT NOT NULL DEFAULT 'eser'");for(const [c,def] of [['oldMeaning','TEXT'],['addedBy','TEXT'],['status',"TEXT NOT NULL DEFAULT 'approved'"]])if(!has('words',c))d.exec(`ALTER TABLE words ADD COLUMN ${c} ${def}`);d.exec('CREATE INDEX IF NOT EXISTS words_status ON words(status,active)');}
+function migrate(d:Database.Database){const has=(t:string,c:string)=>(d.prepare(`PRAGMA table_info(${t})`).all() as {name:string}[]).some(x=>x.name===c);if(!has('works','month'))d.exec("ALTER TABLE works ADD COLUMN month TEXT NOT NULL DEFAULT ''");if(!has('works','kind'))d.exec("ALTER TABLE works ADD COLUMN kind TEXT NOT NULL DEFAULT 'eser'");for(const [c,def] of [['oldMeaning','TEXT'],['addedBy','TEXT'],['status',"TEXT NOT NULL DEFAULT 'approved'"]])if(!has('words',c))d.exec(`ALTER TABLE words ADD COLUMN ${c} ${def}`);d.exec('CREATE INDEX IF NOT EXISTS words_status ON words(status,active)');if(!has('scores','class'))d.exec("ALTER TABLE scores ADD COLUMN class TEXT NOT NULL DEFAULT ''");d.exec('CREATE INDEX IF NOT EXISTS scores_class ON scores(class)');d.exec('CREATE TABLE IF NOT EXISTS class_players (class TEXT NOT NULL, token TEXT NOT NULL, name TEXT NOT NULL, score INTEGER, createdAt INTEGER NOT NULL, PRIMARY KEY(class,token))');}
 // Başlangıç verisi sürümlüdür ve her sürüm bir kez yüklenir; sonrasında terimler görevli panelinden yönetilir.
 // Yeni sürümde yalnızca eksik gruplar ve terimler eklenir; görevlinin düzenlemeleri, gizledikleri ve sildikleri korunur (silinen başlangıç terimi yeni sürümde geri gelir).
 const seedVersion=2;
@@ -76,5 +77,23 @@ const n=(db.prepare('SELECT COUNT(*) n FROM words').get() as {n:number}).n;
 return {word,oldMeaning,meaning,example,work,syllables:text(w.syllables,0,60)??'',category:categories.includes(w.category as string)?w.category as string:categories[0],color:colors[n%colors.length],emoji:text(w.emoji,1,4)??emojiOf(work),scene:text(w.scene,0,400)??'',image:fallbackArt[n%fallbackArt.length],quote:text(w.quote,1,300)??null,note:text(w.note,1,400)??null,addedBy:text(w.addedBy,1,120)??null};}
 // Oyun skorları: üyelik yoktur, oyuncu tur sonunda adını yazar. Her oyun türü (mode) için kişi başına en yüksek skor listelenir.
 export const scoreModes=['word-kolay','word-zor','meaning-kolay','meaning-zor'];
-export function topScores(mode:string,n=10){return database().prepare('SELECT name,MAX(score) score FROM scores WHERE mode = ? GROUP BY name ORDER BY score DESC,MIN(createdAt) LIMIT ?').all(mode,n) as {name:string;score:number}[];}
+export function topScores(mode:string,n=10){return database().prepare("SELECT name,MAX(score) score FROM scores WHERE mode = ? AND class = '' GROUP BY name ORDER BY score DESC,MIN(createdAt) LIMIT ?").all(mode,n) as {name:string;score:number}[];}
 export function addScore(name:string,mode:string,score:number){database().prepare('INSERT INTO scores (name,mode,score,createdAt) VALUES (?,?,?,?)').run(name,mode,score,Date.now());}
+// Sınıf modu: üyelik yoktur. Öğretmen oyun ayarlarıyla bir sınıf açar ve 6 haneli kodu paylaşır; koda giren herkes aynı soruları çözer.
+// Sınıf skorları genel tabloya karışmaz. Tek hak: oyuncu "Oyunu başlat"a basınca rumuzu ve cihaz anahtarıyla (tarayıcıda saklanan rastgele değer) sınıfa yazılır;
+// aynı cihaz ya da aynı rumuz ikinci kez puanlı tura giremez (soruları görüp baştan başlamak işe yaramaz). Skor, tur bitince o kayda bir kez yazılır.
+export type GameClass={code:string;label:string;mode:string;group:string};
+export function createClass(label:string,mode:string,group:string):GameClass{const d=database(),add=d.prepare('INSERT INTO classes (code,label,mode,grp,createdAt) VALUES (?,?,?,?,?) ON CONFLICT(code) DO NOTHING');
+for(let i=0;i<20;i++){const code=String(randomInt(100000,1000000));if(add.run(code,label,mode,group,Date.now()).changes)return {code,label,mode,group};}throw Error('Sınıf kodu üretilemedi.');}
+export function findClass(code:unknown){if(typeof code!=='string'||!/^\d{6}$/.test(code))return undefined;return database().prepare('SELECT code,label,mode,grp "group" FROM classes WHERE code = ?').get(code) as GameClass|undefined;}
+export type ClassPlayer={name:string;score:number|null};
+const validToken=(t:unknown):t is string=>typeof t==='string'&&/^[a-f0-9]{16,64}$/.test(t);
+// Sınıf tablosu: bitirenler puana göre, turu süren oyuncular (score = null) en sonda.
+export function classScores(code:string){return database().prepare('SELECT name,score FROM class_players WHERE class = ? ORDER BY score IS NULL,score DESC,createdAt LIMIT 300').all(code) as ClassPlayer[];}
+export function classPlayed(code:string,token:unknown){return validToken(token)&&!!database().prepare('SELECT 1 FROM class_players WHERE class = ? AND token = ?').get(code,token);}
+// Puanlı tura giriş. 'played': bu cihaz hakkını kullanmış; 'taken': rumuz sınıfta başkasında (büyük/küçük harf farkı sayılmaz).
+export function joinClass(code:string,name:string,token:unknown):'ok'|'played'|'taken'|'invalid'{if(!validToken(token))return 'invalid';const d=database(),key=(s:string)=>s.toLocaleLowerCase('tr').replace(/\s+/g,' ');
+return d.transaction(()=>{const all=d.prepare('SELECT name,token FROM class_players WHERE class = ?').all(code) as {name:string;token:string}[];if(all.some(x=>x.token===token))return 'played';if(all.some(x=>key(x.name)===key(name)))return 'taken';
+d.prepare('INSERT INTO class_players (class,token,name,createdAt) VALUES (?,?,?,?)').run(code,token,name,Date.now());return 'ok';})();}
+// Skor yalnızca puanlı tura girmiş ve henüz skoru yazılmamış kayda işlenir.
+export function finishClass(code:string,token:unknown,score:number){return validToken(token)&&database().prepare('UPDATE class_players SET score = ? WHERE class = ? AND token = ? AND score IS NULL').run(score,code,token).changes>0;}

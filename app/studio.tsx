@@ -10,7 +10,7 @@ import GuessGame from './guess-game';
 import SuggestForm from './suggest-form';
 import {Meanings} from './dict-ui';
 import SearchBox from './search-box';
-import {search} from '../lib/game';
+import {search,seeded} from '../lib/game';
 
 const categories=['Tümü',...wordCategories];
 // Bölümlerin adresteki adları (?bolum=sozluk). Ana sayfanın adı yoktur.
@@ -34,7 +34,7 @@ const src=(w:Word)=>workOf(works,w);
 // Bölüm, çalışma grubu, sözlük sayfası ve açık terim adreste tutulur: geri tuşu, yenileme ve bağlantı paylaşma çalışır.
 const params=useSearchParams(),tab=tabOf(params.get('bolum')),group=params.get('grup')||'',bookPage=Math.max(0,(Number(params.get('sayfa'))||1)-1),termId=params.get('terim');
 // Oturumda saklanan ilerlemeyi okuyan bölümler yalnızca tarayıcıda çizilir (sunucu çıktısıyla uyuşmazlık olmasın).
-const mounted=useSyncExternalStore(()=>()=>{},()=>true,()=>false);
+const mounted=useSyncExternalStore(()=>()=>{},()=>true,()=>false),[seed]=useState(()=>String(Math.random()));
 const [category,setCategory]=useState('Tümü'),[work,setWork]=useState('Tümü'),[query,setQuery]=useState(''),[letter,setLetter]=useState('Tümü');
 const [selected,setSelected]=useState<Word|null>(null),[step,setStep]=useState(1);
 const [sentence,setSentence]=useState(''),[scene,setScene]=useState(''),[nickname,setNickname]=useState(''),[style,setStyle]=useState(styles[0]);
@@ -64,7 +64,10 @@ async function copy(){if(!card)return;try{await navigator.clipboard.writeText(`$
 async function download(){if(!card||!selected)return;setError('');try{const canvas=document.createElement('canvas');canvas.width=1000;canvas.height=1700;const c=canvas.getContext('2d')!;c.fillStyle='#faf6ee';c.fillRect(0,0,1000,1700);const img=new Image();img.src=card.image;await img.decode();const scale=Math.max(880/img.width,600/img.height);c.save();c.beginPath();c.rect(60,140,880,600);c.clip();c.drawImage(img,60+(880-img.width*scale)/2,140+(600-img.height*scale)/2,img.width*scale,img.height*scale);c.restore();c.fillStyle='#de593a';c.font='bold 25px Arial';c.fillText('GENÇTEK  /  TERİMLER SÖZLÜĞÜ',60,85);c.fillStyle='#202a30';c.font='bold 78px Georgia';c.fillText(selected.word,60,845);function wrap(text:string,y:number,size:number,font='Arial'){c.font=`${size}px ${font}`;let line='';for(const word of text.split(' ')){const next=line+word+' ';if(c.measureText(next).width>870){c.fillText(line,60,y);line=word+' ';y+=size*1.45;}else line=next;}c.fillText(line,60,y);return y+size*1.45;}let y=wrap(selected.meaning,910,28);y=wrap('“'+card.sentence+'”',y+40,34,'Georgia');c.font='24px Arial';c.fillText(card.nickname,60,Math.max(1460,y+25));c.fillStyle='#6d7374';c.font='20px Arial';c.fillText(new Date(card.createdAt).toLocaleDateString('tr-TR')+'  ·  '+(card.mode==='ai'?'Yapay zekâ görseli':'Hazır görselle oluşturuldu'),60,1530);c.fillText('Çalışma grubu: '+src(selected).title+'  ·  '+card.id.slice(0,8).toUpperCase(),60,1600);if(qr){const q=new Image();q.src=qr;await q.decode();c.drawImage(q,760,1435,180,180);}const url=canvas.toDataURL('image/png');const a=document.createElement('a');a.download=`genctek-terim-${selected.id}-${card.id.slice(0,8)}.png`;a.href=url;a.click();setNotice('Terim kartın indirildi.');}catch{setError('Görsel indirilemedi. Yazdır seçeneğini kullanabilirsin.');}}
 const letters=[...new Set(words.map(initial))].sort((a,b)=>a==='0–9'?1:b==='0–9'?-1:a.localeCompare(b,'tr'));
 const pool=words.filter(w=>(letter==='Tümü'||initial(w)===letter)&&(category==='Tümü'||w.category===category)&&(work==='Tümü'||w.work===work));
-const filtered=query.trim()?search(pool,query):pool.sort((a,b)=>(initial(a)==='0–9'?1:0)-(initial(b)==='0–9'?1:0)||a.word.localeCompare(b.word,'tr'));
+// Harf seçilmediyse ve arama yoksa ızgara karışık sırada gelir: her ziyarette başka terimler öne çıkar, süzgeç değişse de sıra oturum boyunca aynı kalır.
+// Sunucu çizimi ve ilk istemci çizimi alfabetiktir (uyuşmazlık olmasın); karıştırma sayfa açıldıktan sonra uygulanır.
+const mixed=mounted&&letter==='Tümü'&&!query.trim(),rank=new Map(mixed?pool.map(w=>[w.id,seeded(seed+w.id)()]):[]);
+const filtered=query.trim()?search(pool,query):mixed?pool.sort((a,b)=>rank.get(a.id)!-rank.get(b.id)!):pool.sort((a,b)=>(initial(a)==='0–9'?1:0)-(initial(b)==='0–9'?1:0)||a.word.localeCompare(b.word,'tr'));
 // Izgara 24'er terimle açılır; süzgeç değişince yeniden 24'e döner.
 const filterKey=`${category}|${work}|${query}|${letter}`,limit=pageSize+(more.key===filterKey?more.n:0);
 // Sözlüğe ekleyenler: onaylı terimlerin "ekleyen" alanına göre, en çok ekleyenden aza.

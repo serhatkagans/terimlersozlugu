@@ -21,3 +21,22 @@ test('Invalid input and cross-origin writes are refused',async()=>{
  const cross=await fetch(base+'/api/cards',{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://untrusted.example'},body:'{}'});assert.equal(cross.status,403);
  const config=await fetch(base+'/api/config');const payload=await config.json();assert.deepEqual(Object.keys(payload).sort(),['admin','ai','teacher']);
 });
+test('A class gives each device and nickname one scored round',async()=>{
+ const json=(body)=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const made=await fetch(base+'/api/classes',json({label:'9-B',mode:'word-kolay',group:''}));assert.equal(made.status,201);
+ const {class:c}=await made.json();assert.match(c.code,/^\d{6}$/);assert.equal(c.label,'9-B');
+ const name='Sınıf Testi '+Date.now().toString(36),token='a'.repeat(32),other='b'.repeat(32);
+ assert.equal((await fetch(base+'/api/scores',json({mode:'word-kolay',score:900,class:c.code,token}))).status,409,'tura girmeden skor yazılmaz');
+ assert.equal((await fetch(base+'/api/classes',json({code:c.code,name,token}))).status,201);
+ const started=await (await fetch(base+'/api/classes?code='+c.code+'&token='+token)).json();assert.deepEqual(started,{class:c,top:[{name,score:null}],played:true});
+ const again=await fetch(base+'/api/classes',json({code:c.code,name:'Başka Ad',token}));assert.equal(again.status,200);assert.equal((await again.json()).played,true,'aynı cihaz ikinci kez puanlı tura giremez');
+ assert.equal((await fetch(base+'/api/classes',json({code:c.code,name:name.toLocaleUpperCase('tr'),token:other}))).status,409,'aynı rumuz başka cihazda kullanılamaz');
+ assert.equal((await fetch(base+'/api/scores',json({mode:'word-zor',score:900,class:c.code,token}))).status,400,'sınıfın oyun türü dışında skor kabul edilmez');
+ assert.equal((await fetch(base+'/api/scores',json({mode:'word-kolay',score:900,class:c.code,token}))).status,201);
+ assert.equal((await fetch(base+'/api/scores',json({mode:'word-kolay',score:2000,class:c.code,token}))).status,409,'skor bir kez yazılır');
+ assert.equal((await fetch(base+'/api/scores',json({mode:'word-kolay',score:900,class:'000000',token}))).status,404);
+ const read=await (await fetch(base+'/api/classes?code='+c.code+'&token='+other)).json();assert.deepEqual(read,{class:c,top:[{name,score:900}],played:false});
+ const general=await (await fetch(base+'/api/scores?mode=word-kolay')).json();assert.ok(!general.top.some(t=>t.name===name),'sınıf skoru genel tabloya karışmaz');
+ assert.equal((await fetch(base+'/api/classes?code=abc')).status,404);
+ assert.equal((await fetch(base+'/api/classes',json({label:'',mode:'word-kolay'}))).status,400);
+});
