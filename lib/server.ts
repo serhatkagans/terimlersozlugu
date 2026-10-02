@@ -79,7 +79,8 @@ const word=text(w.word,1,80),oldMeaning=text(w.oldMeaning,2,300),meaning=text(w.
 if(!word||!oldMeaning||!meaning||!example)return 'Terim, kısa tanımı ve 10–240 karakterlik örnek cümle zorunludur.';
 if(!usesWord(example,word))return 'Örnek cümle terimin kendisini içermeli.';
 const work=typeof w.work==='string'&&db.prepare('SELECT 1 FROM works WHERE id = ?').get(w.work)?w.work:undefined;if(!work)return 'Listeden bir çalışma grubu seçin.';
-const same=(db.prepare("SELECT id,word FROM words WHERE work = ? AND status != 'rejected' AND id != ?").all(work,except) as {word:string}[]).some(x=>slug(x.word)===slug(word));if(same)return `“${word}” bu çalışma grubunun sözlüğünde zaten var ya da onay bekliyor.`;
+// Arşivdeki (gizli) terimler engel sayılmaz: öğrenci aynı terimi kendi tanımıyla yeniden önerebilir.
+const same=(db.prepare("SELECT id,word FROM words WHERE work = ? AND status != 'rejected' AND active = 1 AND id != ?").all(work,except) as {word:string}[]).some(x=>slug(x.word)===slug(word));if(same)return `“${word}” bu çalışma grubunun sözlüğünde zaten var ya da onay bekliyor.`;
 const n=(db.prepare('SELECT COUNT(*) n FROM words').get() as {n:number}).n;
 return {word,oldMeaning,meaning,example,work,syllables:text(w.syllables,0,60)??'',category:categories.includes(w.category as string)?w.category as string:categories[0],color:colors[n%colors.length],emoji:text(w.emoji,1,4)??emojiOf(work),scene:text(w.scene,0,400)??'',image:fallbackArt[n%fallbackArt.length],quote:text(w.quote,1,300)??null,note:text(w.note,1,400)??null,addedBy:text(w.addedBy,1,120)??null};}
 // Oyun skorları: üyelik yoktur, oyuncu tur sonunda adını yazar. Her oyun türü (mode) için kişi başına en yüksek skor listelenir.
