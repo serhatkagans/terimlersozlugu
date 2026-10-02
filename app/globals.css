@@ -513,3 +513,16 @@ body{padding-bottom:calc(62px + env(safe-area-inset-bottom))}dialog{margin-botto
 @keyframes live-rise{from{opacity:0;transform:translateY(24px)}}
 @media(max-width:720px){.live-intro b{font-size:46px}.live-bars{gap:10px;min-height:120px}.live-top .live-icon{padding:8px 12px;font-size:13px}.live-question{flex-direction:column;gap:12px}.live-question img{width:130px;height:130px}.live-stage{padding:14px 12px 22px;min-height:480px;border-radius:14px}.live-tiles{grid-template-columns:1fr}.live-tile{min-height:68px;font-size:17px}.live-question h2{font-size:20px}.live-pin{font-size:50px}.live-title{font-size:25px}.live-settings{grid-template-columns:1fr}.live-settings label{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){.live-confetti{display:none}.live-question,.live-tiles.fresh .live-tile,.live-timer.low>b,.live-bars span,.live-bars b,.live-intro b,.live-after,.live-podium .p1,.live-verdict>em i,.live-board strong.up,.live-board em,.live-board li,.live-podium>div,.live-names li,.live-stars li,.live-verdict,.live-me{animation:none}}
+/* Ana sayfa vitrini: etiket, tanıtım yazısı ve sayılar */
+.home-start{overflow:hidden}
+.home-start:before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 86% 6%,rgba(255,255,255,.15) 0 150px,transparent 151px),radial-gradient(circle at 98% 58%,rgba(255,255,255,.07) 0 230px,transparent 231px),radial-gradient(circle at 2% 100%,rgba(0,0,0,.13) 0 190px,transparent 191px)}
+.home-start>:not(.vitrin-logo){position:relative}
+.home-start h1{font-size:58px;letter-spacing:-2.5px;line-height:1.05;margin:16px 0 12px}.home-start h1 em{color:#ffd9a8}
+.home-tag{display:inline-block;background:#fff;color:var(--orange);font-family:'Plus Jakarta Sans',Arial,sans-serif;font-weight:800;font-size:22px;letter-spacing:-.4px;padding:7px 18px;border-radius:999px;transform:rotate(-2deg);box-shadow:0 8px 20px rgba(0,0,0,.22);margin:0 0 22px}
+.home-start>p.home-lead{color:#fff;font-size:18px;line-height:1.6;margin:0 0 22px;max-width:680px}
+.home-stats{list-style:none;display:flex;flex-wrap:wrap;gap:12px;margin:0 0 26px;padding:0}
+.home-stats li{display:flex;flex-direction:column;gap:2px;min-width:132px;padding:12px 18px;border-radius:14px;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.14);font-size:11px;font-weight:700;letter-spacing:1.2px;color:#fadadb}
+.home-stats b{font-family:'Plus Jakarta Sans',Arial,sans-serif;font-size:32px;line-height:1.1;letter-spacing:-1px;color:#fff}
+@media(prefers-reduced-motion:no-preference){.home-tag{animation:home-tag .5s cubic-bezier(.2,1.4,.4,1) both}@keyframes home-tag{from{opacity:0;transform:rotate(-8deg) scale(.7)}}}
+@media(max-width:760px){.home-start h1{font-size:36px;letter-spacing:-1.2px}.home-tag{font-size:17px;padding:6px 14px;margin-bottom:18px}.home-start>p.home-lead{font-size:15px;padding-right:0}.home-stats{gap:8px;margin-bottom:20px}.home-stats li{flex:1;min-width:0;padding:10px 12px;font-size:10px;letter-spacing:.8px}.home-stats b{font-size:24px}}
+@media(max-width:760px){.home-start>.eyebrow{padding-right:56px}}
