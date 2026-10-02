@@ -21,8 +21,12 @@ CREATE TABLE IF NOT EXISTS classes (code TEXT PRIMARY KEY, label TEXT NOT NULL, 
 function migrate(d:Database.Database){const has=(t:string,c:string)=>(d.prepare(`PRAGMA table_info(${t})`).all() as {name:string}[]).some(x=>x.name===c);if(!has('works','month'))d.exec("ALTER TABLE works ADD COLUMN month TEXT NOT NULL DEFAULT ''");if(!has('works','kind'))d.exec("ALTER TABLE works ADD COLUMN kind TEXT NOT NULL DEFAULT 'eser'");for(const [c,def] of [['oldMeaning','TEXT'],['addedBy','TEXT'],['status',"TEXT NOT NULL DEFAULT 'approved'"]])if(!has('words',c))d.exec(`ALTER TABLE words ADD COLUMN ${c} ${def}`);d.exec('CREATE INDEX IF NOT EXISTS words_status ON words(status,active)');if(!has('scores','class'))d.exec("ALTER TABLE scores ADD COLUMN class TEXT NOT NULL DEFAULT ''");d.exec('CREATE INDEX IF NOT EXISTS scores_class ON scores(class)');d.exec('CREATE TABLE IF NOT EXISTS class_players (class TEXT NOT NULL, token TEXT NOT NULL, name TEXT NOT NULL, score INTEGER, createdAt INTEGER NOT NULL, PRIMARY KEY(class,token))');}
 // Başlangıç verisi sürümlüdür ve her sürüm bir kez yüklenir; sonrasında terimler görevli panelinden yönetilir.
 // Yeni sürümde yalnızca eksik gruplar ve terimler eklenir; görevlinin düzenlemeleri, gizledikleri ve sildikleri korunur (silinen başlangıç terimi yeni sürümde geri gelir).
-const seedVersion=2;
-function seed(d:Database.Database){syncArt(d);const v=d.pragma('user_version',{simple:true}) as number;if(v>=seedVersion)return;d.transaction(()=>{
+// Sürüm 3: Güvenli İnternet grubu Bilişim Hukuku ile birleşti (terimleri, sınıfları ve onay bekleyen öneriler taşınır), Eğitim Teknolojileri eklendi.
+const seedVersion=3;
+function mergeGroups(d:Database.Database){const from='guvenli-internet',k=seedWorks.find(k=>k.id==='bilisim-hukuku');if(!k||!d.prepare('SELECT 1 FROM works WHERE id = ?').get(from))return;
+d.prepare("INSERT INTO works (id,title,author,period,month,kind) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,author=excluded.author").run(k.id,k.title,k.author,k.period,k.month,k.kind??'terim');
+d.prepare('UPDATE words SET work = ? WHERE work = ?').run(k.id,from);d.prepare('UPDATE classes SET grp = ? WHERE grp = ?').run(k.id,from);d.prepare('DELETE FROM works WHERE id = ?').run(from);}
+function seed(d:Database.Database){syncArt(d);const v=d.pragma('user_version',{simple:true}) as number;if(v>=seedVersion)return;d.transaction(()=>{mergeGroups(d);
 const work=d.prepare("INSERT INTO works (id,title,author,period,month,kind) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING");
 for(const k of seedWorks)work.run(k.id,k.title,k.author,k.period,k.month,k.kind??'terim');
 seedWords.forEach((w,i)=>insertWord(w,i,d,'ignore'));d.pragma(`user_version = ${seedVersion}`);})();syncArt(d);}

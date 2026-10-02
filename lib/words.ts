@@ -1,4 +1,4 @@
-// GençTek Terimler Sözlüğü: her çalışma grubunun temel terimleri. Veritabanı boşken bir kez yüklenir; sonrasında terimler görevli panelinden yönetilir.
+// GençTek Bilişim Sözlüğü: her çalışma grubunun temel terimleri. Veritabanı boşken bir kez yüklenir; sonrasında terimler görevli panelinden yönetilir.
 // Veri modeli ilk sürümden (Kelimeden Hayale) geliyor; iç adlar korunmuştur: Work = çalışma grubu, Word = terim.
 // Terime özel resim DATA_DIR/art/kelimeler/<id>.png olarak durur; yoksa `image` alanındaki ortak resim kullanılır.
 import {groups,type TermRow} from './terimler/index.ts';

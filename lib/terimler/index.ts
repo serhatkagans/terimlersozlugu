@@ -20,4 +20,7 @@ import acikKaynak from './acik-kaynak.ts';
 import espor from './espor.ts';
 import hukuk from './bilisim-hukuku.ts';
 import guvenliInternet from './guvenli-internet.ts';
-export const groups:Group[]=[oyun,siber,olimpiyat,mobil,web,havacilik,robotik,yapayZeka,eticaret,dijitalSanat,acikKaynak,espor,hukuk,guvenliInternet];
+import egitimTeknolojileri from './egitim-teknolojileri.ts';
+// Bilişim Hukuku ve Güvenli İnternet tek çalışma grubudur; terimleri iki dosyada durur. Kimlik 'bilisim-hukuku' kalır (eski veritabanları lib/server.ts'te birleştirilir).
+const hukukInternet:Group={...hukuk,title:'Bilişim Hukuku ve Güvenli İnternet',about:'Dijital dünyada haklar, sorumluluklar ve güvenli internet kullanımı',terms:[...hukuk.terms,...guvenliInternet.terms]};
+export const groups:Group[]=[oyun,siber,olimpiyat,mobil,web,havacilik,robotik,yapayZeka,eticaret,dijitalSanat,acikKaynak,espor,hukukInternet,egitimTeknolojileri];

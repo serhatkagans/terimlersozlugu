@@ -1,4 +1,4 @@
-# GençTek Terimler Sözlüğü
+# GençTek Bilişim Sözlüğü
 
 GençTek çalışma gruplarının temel terimlerinden oluşan, görevli onayıyla büyüyen, oyunlaştırılmış bir terimler sözlüğü. Hedef kitle lise öğrencileri ve alanı öğrenen bilinçli kullanıcılardır. Kelimeden Hayale uygulamasından türetilmiştir; veri modeli ve bileşen yapısı ortaktır.
 
@@ -9,7 +9,8 @@ Grup adları GençTek Bilgi Sistemi'ndeki çalışma grubu listesiyle aynıdır 
 | Grup | Terim | Kaynak |
 |---|---|---|
 | Oyun Tasarımı | 115 | Çalışma grubunun “Oyun Sektörü Temel Terimler” belgesi (tanımlar düzenlendi; hitbox/hurtbox tanımları sektördeki kullanıma göre düzeltildi) |
-| Siber Güvenlik, Bilgisayar Olimpiyatları, Mobil Programlama, Web Programlama, Havacılık Sistemleri, Robotik, Yapay Zekâ, E-Ticaret ve E-İhracat, Dijital Sanatlar ve İçerik Geliştirme, Açık Kaynak, Espor, Bilişim Hukuku, Güvenli İnternet | 30’ar | Derlendi |
+| Siber Güvenlik, Bilgisayar Olimpiyatları, Mobil Programlama, Web Programlama, Havacılık Sistemleri, Robotik, Yapay Zekâ, E-Ticaret ve E-İhracat, Dijital Sanatlar ve İçerik Geliştirme, Açık Kaynak, Espor, Eğitim Teknolojileri | 30’ar | Derlendi |
+| Bilişim Hukuku ve Güvenli İnternet | 60 | Derlendi (iki grup birleştirildi) |
 
 “GençX” ve “Diğer” grupları başlangıç verisinde yoktur; panelden eklenebilir. Bilişim Hukuku terimlerindeki mevzuat atıfları genel bilgilendirme içindir.
 

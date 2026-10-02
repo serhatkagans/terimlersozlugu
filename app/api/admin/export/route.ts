@@ -26,7 +26,7 @@ const words=db.prepare('SELECT w.* FROM words w LEFT JOIN works k ON k.id = w.wo
 const title=(id:string)=>works.find(k=>k.id===id)?.title??id;
 // Başlangıç terimlerinin createdAt değeri sıra numarasıdır (tarih değil); onlarda Eklenme boş kalır.
 const record=(w:Row)=>({word:w.word,group:title(w.work),syllables:w.syllables,oldMeaning:w.oldMeaning,meaning:w.meaning,example:w.example,category:w.category,addedBy:w.addedBy,status:statusName[w.status]??w.status,active:w.active?'Evet':'Hayır',image:ownArt(w,ill)?'Var':'Yok',createdAt:w.createdAt>1e12?new Date(w.createdAt):null,id:w.id});
-const book=new ExcelJS.Workbook();book.creator='GençTek Terimler Sözlüğü';book.created=new Date();
+const book=new ExcelJS.Workbook();book.creator='GençTek Bilişim Sözlüğü';book.created=new Date();
 const used=new Set<string>(['tüm terimler','özet']);
 table(book.addWorksheet('Tüm terimler',{properties:{tabColor:{argb:brand}}}),columns,words.map(record));
 const summary=book.addWorksheet('Özet');

@@ -221,7 +221,7 @@ progress::-webkit-progress-bar{background:#e5e6e9}progress::-webkit-progress-val
 .home-start{padding:40px 0 10px}.home-start h1{font-size:48px;letter-spacing:-2px;margin:14px 0 6px}.home-start>p{color:var(--muted);margin:0 0 22px}.home-start .activities{grid-template-columns:repeat(3,1fr)}.home-start .activity{min-height:120px}.home-start .activity:nth-child(6){background:#eef0f3}
 @media(max-width:760px){.home-start{padding-top:24px}.home-start h1{font-size:34px;letter-spacing:-1px}.home-start .activities{grid-template-columns:1fr 1fr}}
 
-/* GençTek Terimler Sözlüğü: kurumsal palet (gençtek/src/app/globals.css, Tema D) — kırmızı #c4161c, nötr siyah #414042, soğuk gri #939598. */
+/* GençTek Bilişim Sözlüğü: kurumsal palet (gençtek/src/app/globals.css, Tema D) — kırmızı #c4161c, nötr siyah #414042, soğuk gri #939598. */
 body{border-top:4px solid var(--orange)}
 .primary:hover:not(:disabled){background:var(--orange-dark)}
 .festival{font-style:normal;color:var(--orange)}
