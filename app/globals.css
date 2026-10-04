@@ -291,6 +291,10 @@ select:focus-visible{outline:3px solid #c4161c;outline-offset:2px}
 .word-card>p{font-size:12px;color:#5f6064}
 .word-card .word-work{font-size:12px;color:#5f6064}
 .word-bottom{font-size:12px;font-weight:600}
+/* Buton içeriği dikeyde ortalanır; aynı satırdaki kartlar eşit boylu olduğundan içerik üstten başlar, "keşfet" satırı dibe oturur. */
+.word-card{display:flex;flex-direction:column}
+.word-card .word-bottom{margin-top:auto}
+.word-card .word-illustration{margin-bottom:0}
 .activity small{font-size:13px}
 .community-banner p{font-size:14px}
 footer p,footer>small{font-size:12.5px;color:#5f6064}
