@@ -37,6 +37,7 @@ const [fifty,setFifty]=useState(FIFTY),[letters,setLetters]=useState(LETTERS),[r
 const [top,setTop]=useState<{name:string;score:number}[]>([]),[player,setPlayer]=useState(()=>{try{return localStorage.getItem(nameKey)||'';}catch{return '';}}),[saved,setSaved]=useState(false),[saving,setSaving]=useState(false),[scoreError,setScoreError]=useState('');
 const mode=`${ask}-${level}`;
 // Canlı yarışma (Kahoot tarzı, live-game.tsx): adreste ?canli=PIN varsa ya da sekme oturumunda süren oyun varsa doğrudan açılır.
+const [kahoot,setKahoot]=useState('');
 const [live,setLive]=useState(()=>/^\d{6}$/.test(new URLSearchParams(location.search).get('canli')||'')||!!readSession(livePinKey,''));
 const [klass,setKlass]=useState<Klass|null>(null),[classTop,setClassTop]=useState<ClassTop>([]),[classPlayed,setClassPlayed]=useState(''),[counted,setCounted]=useState(false),[classBusy,setClassBusy]=useState(false),[classError,setClassError]=useState(''),[qr,setQr]=useState('');
 // played: bu cihaz bu sınıftaki puanlı tur hakkını kullandı. counted: süren/biten tur sınıf tablosuna yazılan tur.
@@ -97,12 +98,13 @@ const settings=<div className="game-setup">
 </div>;
 const room=klass&&<div className="class-room"><div><div className="eyebrow">SINIF MODU · {klass.label}</div><p>Sınıf kodu</p><b className="class-code">{klass.code}</b><ul className="game-facts"><li>{modeName}</li><li>{group?`${emojiOf(group)} ${works.find(k=>k.id===group)?.title??group}`:'Bütün çalışma grupları'}</li><li>Herkese aynı sorular</li></ul>
 <p className="class-link">Oyun bölümünde bu kodu yaz ya da kare kodu okut: <span>{classLink}</span></p><button className="secondary class-leave" onClick={leaveClass}>✕ Sınıftan çık</button></div>{qr&&<img src={qr} alt="Sınıfa katılma kare kodu" width={180} height={180}/>}</div>;
-if(live)return <LiveGame words={words} works={works} token={deviceToken()} onExit={()=>setLive(false)}/>;
+if(live)return <LiveGame words={words} works={works} token={deviceToken()} kahoot={kahoot} onExit={()=>{setLive(false);setKahoot('');}}/>;
 if(phase==='setup')return <section className="standalone game"><header className="game-hero"><div><div className="eyebrow">TERİM OYUNU</div><h1>Oyna, <em>öğren.</em></h1>
 <p>Hızlı cevap daha çok puan getirir; art arda doğrular seri bonusu kazandırır.</p>
 <ul className="game-facts"><li><b>{ROUND}</b> soru</li><li>Soru başına <b>{TIME}</b> saniye</li><li><b>3</b> joker</li></ul></div>
 <div className="game-record"><span aria-hidden="true">🏆</span><b>{readRecords()[key]??0}</b><small>Rekorun · {modeName}</small></div></header>
-<div className="game-panel">{!klass&&<button className="live-cta" onClick={()=>setLive(true)}><i aria-hidden="true">▲◆●■</i><span><b>Kahoot tarzı canlı oyna</b><small>Öğrenciler PIN ile bağlanır, adları tahtada görünür; sorular öğretmenin hızıyla ilerler, sonunda podyum.</small></span><em aria-hidden="true">↗</em></button>}{room||settings}
+<div className="game-panel">{!klass&&<button className="live-cta" onClick={()=>setLive(true)}><i aria-hidden="true">▲◆●■</i><span><b>Kahoot tarzı canlı oyna</b><small>Öğrenciler PIN ile bağlanır, adları tahtada görünür; sorular öğretmenin hızıyla ilerler, sonunda podyum.</small></span><em aria-hidden="true">↗</em></button>}
+{!klass&&<button className="live-cta kahoot" onClick={()=>{setKahoot('girisimcilik');setLive(true);}}><i aria-hidden="true">🚀</i><span><b>Kahoot Girişimcilik</b><small>Tekno Girişimcilik yarışması: 25 hazır soru (10 Doğru/Yanlış, 15 dört şıklı), canlı ve PIN ile.</small></span><em aria-hidden="true">↗</em></button>}{room||settings}
 {!teacher&&<ul className="joker-info" aria-label="Jokerler"><li><b>½ Yarı yarıya</b><small>İki yanlış şıkkı eler</small></li><li><b>🔤 Harf aç</b><small>Terimden bir harf gösterir</small></li><li><b>🌐 Karşılık</b><small>İngilizce ya da Türkçe karşılığı gösterir</small></li></ul>}
 {teacher&&<p className="notice" role="status">Öğretmen ekranı: bu ekranı tahtaya yansıt. Öğrenciler kodla ya da kare kodla girer; başlayanlar ve skorları aşağıda kendiliğinden görünür. Bu tarayıcıdan oyun oynanmaz.</p>}
 {klass&&!teacher&&played&&<p className="notice" role="status">Bu sınıftaki puanlı tur hakkını kullandın. Bundan sonraki turlar farklı sorularla alıştırmadır; sınıf tablosuna yazılmaz.</p>}

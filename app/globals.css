@@ -455,6 +455,7 @@ body{padding-bottom:calc(62px + env(safe-area-inset-bottom))}dialog{margin-botto
 
 /* Canlı yarışma (Kahoot tarzı): mor sahne, dört renkli ve şekilli şık, bekleme salonu, ara skor tablosu, podyum. */
 .live-cta{display:flex;align-items:center;gap:16px;width:100%;margin-bottom:24px;padding:16px 20px;border:0;border-radius:14px;background:#46178f;color:#fff;text-align:left}.live-cta:hover{background:#3a1278}
+.live-cta.kahoot{margin-top:-12px;background:#1368ce}.live-cta.kahoot:hover{background:#0f57ab}
 .live-cta>i{flex:none;font-style:normal;font-size:20px;letter-spacing:3px;color:#ffd166}.live-cta>span{flex:1;display:flex;flex-direction:column;gap:3px}.live-cta b{font-size:17px}.live-cta small{font-size:13px;line-height:1.45;color:#e3d8f7}.live-cta em{font-style:normal;font-size:20px}
 .game-hero.live-hero{background:linear-gradient(135deg,#6a2fc0 0%,#46178f 55%,#25076b 100%)}.live-hero p,.live-hero .eyebrow,.live-hero h1 em{color:#e3d8f7}
 .live-settings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 12px}.live-settings label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:var(--muted)}.live-settings label:first-child,.live-settings label:nth-child(3){grid-column:1/-1}

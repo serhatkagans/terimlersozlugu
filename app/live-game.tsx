@@ -3,6 +3,7 @@ import {useEffect,useMemo,useState} from 'react';
 import QRCode from 'qrcode';
 import {base,emojiOf,type Word,type Work} from '../lib/words';
 import {AVATARS,type LiveView} from '../lib/live';
+import {KAHOOTS} from '../lib/kahoot';
 import {isMuted,music,setMuted,sfx} from './live-sound';
 import {seeded} from '../lib/game';
 import {readSession,writeSession} from './dict-ui';
@@ -33,17 +34,19 @@ const REVEAL=[4200,2200,600];
 const CONFETTI=(()=>{const r=seeded('konfeti'),colors=['#e21b3c','#1368ce','#ffd166','#26890c','#ffffff'];return Array.from({length:70},()=>({left:r()*100,delay:r()*2.5,dur:2.6+r()*2.2,color:colors[Math.floor(r()*colors.length)],w:6+r()*8,rot:r()*360}));})();
 const Confetti=()=><div className="live-confetti" aria-hidden="true">{CONFETTI.map((c,i)=><i key={i} style={{left:`${c.left}%`,width:c.w,height:c.w*1.6,background:c.color,rotate:`${c.rot}deg`,animationDelay:`${REVEAL[0]/1000+c.delay}s`,animationDuration:`${c.dur}s`}}/>)}</div>;
 function Podium({rows}:{rows:Row[]}){return <div className="live-podium">{[1,0,2].map(i=>rows[i]&&<div key={i} className={`p${i+1}`}><span aria-hidden="true">{rows[i].avatar}</span><b>{['🥇','🥈','🥉'][i]} {rows[i].name}</b><small><Count from={0} to={rows[i].score} delay={REVEAL[i]+300}/> puan</small><div>{i+1}</div></div>)}</div>;}
-export default function LiveGame({works,words,token,onExit}:{works:Work[];words:Word[];token:string;onExit:()=>void}){
+// kahoot: oyun bölümündeki bağlantıyla gelinirse Tür'de baştan seçili olan hazır soru seti (lib/kahoot.ts).
+export default function LiveGame({works,words,token,kahoot='',onExit}:{works:Work[];words:Word[];token:string;kahoot?:string;onExit:()=>void}){
 const [pin,setPin]=useState(()=>urlPin()||readSession(livePinKey,'')),[code,setCode]=useState(''),[view,setView]=useState<LiveView|null>(null),[got,setGot]=useState(0),[now,setNow]=useState(0);
 const [name,setName]=useState(()=>{try{return localStorage.getItem(nameKey)||'';}catch{return '';}}),[error,setError]=useState(''),[busy,setBusy]=useState(false),[qr,setQr]=useState('');
 const [avatar,setAvatar]=useState(()=>{try{const a=localStorage.getItem(avatarKey)||'';return AVATARS.includes(a)?a:AVATARS[0];}catch{return AVATARS[0];}}),[muted,setMute]=useState(isMuted),[full,setFull]=useState(false);
-const [label,setLabel]=useState(''),[ask,setAsk]=useState<'word'|'meaning'>('word'),[group,setGroup]=useState(''),[count,setCount]=useState(10),[time,setTime]=useState(20);
+const [label,setLabel]=useState(''),[ask,setAsk]=useState(()=>KAHOOTS[kahoot]?`kahoot:${kahoot}`:'word'),[group,setGroup]=useState(''),[count,setCount]=useState(10),[time,setTime]=useState(20);
+const set=ask.startsWith('kahoot:')?ask.slice(7):'',kit=KAHOOTS[set];
 const secret=useMemo(()=>pin?hosts()[pin]??'':'',[pin]);
 function take(v:LiveView){const t=clock();setView(v);setGot(t);setNow(t);}
 function leave(msg=''){setPin('');setView(null);setError(msg);writeSession(livePinKey,'');const p=new URLSearchParams(location.search);if(p.has('canli')){p.delete('canli');history.replaceState(null,'',`?${p}`);}}
 async function post(body:Record<string,unknown>){const r=await fetch(base+'/api/live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),d=await r.json();if(!r.ok)throw Object.assign(Error(d.error),{status:r.status});return d;}
 async function act(body:Record<string,unknown>){if(busy)return;setBusy(true);setError('');try{take(await post({pin,...body}));}catch(e){const x=e as Error&{status?:number};if(x.status===404)leave(x.message);else setError(x.message||'İstek gönderilemedi. Tekrar dene.');}finally{setBusy(false);}}
-async function create(){if(busy)return;setBusy(true);setError('');try{const d=await post({action:'create',label:label.trim(),ask,group,count,time});try{localStorage.setItem(hostKey,JSON.stringify({...Object.fromEntries(Object.entries(hosts()).slice(-20)),[d.pin]:d.host}));}catch{}setPin(d.pin);}catch(e){setError(e instanceof Error?e.message:'Oyun açılamadı.');}finally{setBusy(false);}}
+async function create(){if(busy)return;setBusy(true);setError('');try{const d=await post({action:'create',label:label.trim()||kit?.title||'',ask,kahoot:set,group,count,time});try{localStorage.setItem(hostKey,JSON.stringify({...Object.fromEntries(Object.entries(hosts()).slice(-20)),[d.pin]:d.host}));}catch{}setPin(d.pin);}catch(e){setError(e instanceof Error?e.message:'Oyun açılamadı.');}finally{setBusy(false);}}
 function join(){try{localStorage.setItem(nameKey,name.trim());localStorage.setItem(avatarKey,avatar);}catch{}void act({action:'join',name:name.trim(),avatar,token});}
 useEffect(()=>{if(pin)writeSession(livePinKey,pin);},[pin]);
 // Yoklama: oyun bulunamazsa (yanlış PIN, kapanmış oyun) giriş ekranına dönülür.
@@ -73,11 +76,12 @@ if(!pin)return <section className="standalone game live"><header className="game
 <form onSubmit={e=>{e.preventDefault();setError('');setPin(code);}}><b>Öğrenci: oyuna katıl</b><small>Tahtadaki 6 haneli oyun PIN’ini yaz.</small><div className="guess-text"><label className="sr-only" htmlFor="live-pin">Oyun PIN’i</label><input id="live-pin" inputMode="numeric" autoComplete="off" maxLength={6} placeholder="Oyun PIN’i" value={code} onChange={e=>setCode(e.target.value.replace(/\D/g,''))}/><button className="primary" disabled={code.length!==6}>Katıl</button></div></form>
 <form onSubmit={e=>{e.preventDefault();void create();}}><b>Öğretmen: oyun aç</b><small>Ayarları seç; açılan ekranı tahtaya yansıt.</small>
 <div className="live-settings"><label>Oyun adı<input maxLength={40} placeholder="ör. 9-B" value={label} onChange={e=>setLabel(e.target.value)}/></label>
-<label>Tür<select value={ask} onChange={e=>setAsk(e.target.value as 'word'|'meaning')}><option value="word">Terimi Bul (tanımdan terime)</option><option value="meaning">Tanımını Bul (terimden tanıma)</option></select></label>
+<label>Tür<select value={ask} onChange={e=>setAsk(e.target.value)}><option value="word">Terimi Bul (tanımdan terime)</option><option value="meaning">Tanımını Bul (terimden tanıma)</option>{Object.entries(KAHOOTS).map(([id,k])=><option key={id} value={`kahoot:${id}`}>{k.emoji} Kahoot: {k.title} ({k.rows.length} soru)</option>)}</select></label>
+{!kit&&<>
 <label>Çalışma grubu<select value={group} onChange={e=>setGroup(e.target.value)}><option value="">Bütün çalışma grupları</option>{active.map(k=><option key={k.id} value={k.id}>{emojiOf(k.id)} {k.title}</option>)}</select></label>
-<label>Soru sayısı<select value={count} onChange={e=>setCount(Number(e.target.value))}>{[5,10,15,20].map(n=><option key={n} value={n}>{n} soru</option>)}</select></label>
+<label>Soru sayısı<select value={count} onChange={e=>setCount(Number(e.target.value))}>{[5,10,15,20].map(n=><option key={n} value={n}>{n} soru</option>)}</select></label></>}
 <label>Süre<select value={time} onChange={e=>setTime(Number(e.target.value))}>{[10,20,30].map(n=><option key={n} value={n}>{n} saniye</option>)}</select></label></div>
-<button className="primary" disabled={busy||pool.length<4}>{pool.length<4?'Bu grupta yeterli terim yok':'Oyunu aç ↗'}</button></form></div>
+<button className="primary" disabled={busy||(!kit&&pool.length<4)}>{!kit&&pool.length<4?'Bu grupta yeterli terim yok':'Oyunu aç ↗'}</button></form></div>
 {err}<div className="button-row start"><button className="text-button" onClick={onExit}>← Tek kişilik oyuna dön</button></div></div></section>;
 const stage=(body:React.ReactNode,cls='')=><section className="standalone game live"><div className={`live-stage ${cls}`}>{view&&<div className="live-top"><span>PIN <b>{spaced(view.pin)}</b></span><span>{view.label}</span>{view.at>=0&&<span>Soru <b>{view.at+1}</b>/{view.total}</span>}<span>👥 <b>{view.count}</b></span><button className="live-icon" title={muted?'Sesi aç':'Sesi kapat'} aria-label={muted?'Sesi aç':'Sesi kapat'} onClick={()=>{setMuted(!muted);setMute(!muted);}}><span aria-hidden="true">{muted?'🔇':'🔊'}</span> {muted?'Ses kapalı':'Ses açık'}</button><button className="live-icon" title={full?'Tam ekrandan çık':'Tam ekran'} aria-label={full?'Tam ekrandan çık':'Tam ekran'} onClick={toggleFull}><span aria-hidden="true">⛶</span> {full?'Tam ekrandan çık':'Tam ekran'}</button><button className="live-icon exit" onClick={()=>leave()}><span aria-hidden="true">✕</span> Çık</button></div>}{body}{err}</div></section>;
 if(!view)return stage(<p className="live-wait">Bağlanılıyor…</p>);

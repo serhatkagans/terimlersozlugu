@@ -2,6 +2,7 @@ import {randomBytes,randomInt} from 'node:crypto';
 import {catalog,illustrated,limited,sameOrigin,text} from '../../../lib/server';
 import {choices,hideWords,inTitle,shuffle} from '../../../lib/game';
 import {emojiOf,ownArt,type Word} from '../../../lib/words';
+import {kahootQuestions} from '../../../lib/kahoot';
 import {advanceLive,answerLive,createLive,findLive,joinLive,kickLive,viewLive,type LiveQ} from '../../../lib/live';
 export const dynamic='force-dynamic';
 const fail=(error:string,status=400)=>Response.json({error},{status});
@@ -16,12 +17,12 @@ return ask==='meaning'?{prompt:w.word,tag,options:o.map(x=>hideWords(hint(x),w.w
 // Oyunun o anki görünümü (?pin=482913&token=… ya da &host=…). Ekranlar bu adresi saniyede bir yoklar; bu yüzden hız sınırı yoktur.
 export async function GET(request:Request){const q=new URL(request.url).searchParams,g=findLive(q.get('pin'));if(!g)return gone();
 return Response.json(viewLive(g,q.get('token'),q.get('host')===g.host));}
-// action: create (öğretmen oyunu açar), join (öğrenci adıyla katılır), answer (şık seçer), next (öğretmen ilerletir), kick (öğretmen bir adı çıkarır).
+// action: create (öğretmen oyunu açar; kahoot verilirse lib/kahoot.ts'teki hazır soru seti kullanılır), join (öğrenci adıyla katılır), answer (şık seçer), next (öğretmen ilerletir), kick (öğretmen bir adı çıkarır).
 export async function POST(request:Request){if(!sameOrigin(request))return fail('Geçersiz istek.',403);
 try{const p=await request.json() as Record<string,unknown>;
 if(p?.action==='create'){if(limited(request,'live',30,10*60_000))return fail('Çok fazla oyun açıldı. Birkaç dakika sonra tekrar dene.',429);
 const ask=p.ask==='meaning'?'meaning':'word',group=typeof p.group==='string'?p.group:'',count=[5,10,15,20].includes(p.count as number)?p.count as number:10,time=[10,20,30].includes(p.time as number)?p.time as number:20;
-const qs=questions(ask,group,count);if(!qs.length)return fail('Bu grupta oyun için yeterli terim yok.');
+const qs=typeof p.kahoot==='string'&&p.kahoot?kahootQuestions(p.kahoot):questions(ask,group,count);if(!qs.length)return fail(p.kahoot?'Bu soru seti bulunamadı.':'Bu grupta oyun için yeterli terim yok.');
 const host=randomBytes(16).toString('hex'),label=text(p.label,1,40)??'Canlı yarışma';
 for(let i=0;i<20;i++){const g=createLive({pin:String(randomInt(100000,1000000)),host,label,time,qs});if(g)return Response.json({pin:g.pin,host},{status:201});}
 return fail('Oyun açılamadı. Biraz sonra tekrar dene.',503);}

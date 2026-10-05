@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {kahootQuestions} from '../lib/kahoot.ts';
 import {advanceLive,answerLive,createLive,findLive,joinLive,kickLive,viewLive} from '../lib/live.ts';
 const qs=[0,1,2].map(i=>({prompt:`soru ${i}`,tag:'',options:['a','b','c','d'],correct:i,answer:'abcd'[i]}));
 const A='a'.repeat(32),B='b'.repeat(32),C='c'.repeat(32);
@@ -31,4 +32,11 @@ test('Canlı yarışma: şıklar açılmadan cevap alınmaz, avatar ve görsel k
  assert.ok(!answerLive(g,A,0,3999));assert.ok(answerLive(g,A,0,4000));assert.equal(viewLive(g,A,false,4000).me.score,0);
  advanceLive(g,5000);v=viewLive(g,A,false,5000);assert.equal(v.q.image,'/a.png');assert.equal(v.me.score,1000);
  advanceLive(g,6000);advanceLive(g,7000);assert.equal(viewLive(g,A,false,7000).q.image,'/b.png','ipucu görseli soruyla birlikte gider');
+});
+test('Kahoot soru seti: iki ve dört şıklı sorular, doğru şık karışsa da doğru kalır',()=>{
+ const qs=kahootQuestions('girisimcilik');assert.equal(qs.length,25);assert.deepEqual(kahootQuestions('yok'),[]);
+ for(const q of qs){assert.ok([2,4].includes(q.options.length));assert.equal(q.options[q.correct],q.answer);}
+ assert.deepEqual(qs[0].options,['Doğru','Yanlış']);assert.equal(qs[0].correct,1);
+ const g=createLive({pin:'333333',host:'h',label:'',time:20,qs,intro:0},0);joinLive(g,'Elif',A);advanceLive(g,0);
+ assert.ok(!answerLive(g,A,2,0),'iki şıklı soruda üçüncü şık yok');assert.ok(answerLive(g,A,1,0));assert.equal(viewLive(g,A,false,0).result.counts.length,2);
 });
