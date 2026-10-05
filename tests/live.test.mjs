@@ -36,7 +36,7 @@ test('Canlı yarışma: şıklar açılmadan cevap alınmaz, avatar ve görsel k
 test('Kahoot soru seti: iki ve dört şıklı sorular, doğru şık karışsa da doğru kalır',()=>{
  const qs=kahootQuestions('girisimcilik');assert.equal(qs.length,25);assert.deepEqual(kahootQuestions('yok'),[]);
  for(const q of qs){assert.ok([2,4].includes(q.options.length));assert.equal(q.options[q.correct],q.answer);}
- assert.deepEqual(qs[0].options,['Doğru','Yanlış']);assert.equal(qs[0].correct,1);
+ assert.deepEqual(qs[0].options,['Doğru','Yanlış']);assert.equal(qs.filter(q=>q.options.length===2).length,7,'ilk 7 soru Doğru/Yanlış');assert.ok(qs.slice(0,7).every(q=>q.options.length===2));assert.equal(qs[0].correct,1);
  const g=createLive({pin:'333333',host:'h',label:'',time:20,qs,intro:0},0);joinLive(g,'Elif',A);advanceLive(g,0);
  assert.ok(!answerLive(g,A,2,0),'iki şıklı soruda üçüncü şık yok');assert.ok(answerLive(g,A,1,0));assert.equal(viewLive(g,A,false,0).result.counts.length,2);
 });
